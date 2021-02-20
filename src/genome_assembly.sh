@@ -17,7 +17,8 @@ PREREQUISITES:
 
 TOOLS INSTALLED/INVOKED:
 	Read quality:
-		FastQC
+		Fastp
+		MultiQC
 	Genome assembly:
 		ABySS
 		SKESA
@@ -29,36 +30,61 @@ TOOLS INSTALLED/INVOKED:
 		GAM-NGS
 
 OPTIONS
-	-h 	display help
-	-i 	install pipeline
-	-o 	[OUTPUT_FOLDER] (defaults to sibling ('../output') of input reads directory)
-	-t 	[TOOLS_FOLDER] Directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
+	-h 					display help
+	-i 					install pipeline
+	-o 	OUTPUT_FOLDER 	(defaults to sibling ('../output') of input reads directory)
+	-t 	TOOLS_FOLDER 	directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
+	-p 					do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
 "
 
-# Parse user command line arguments  # TODO add assembly parameters
+# Parse optional arguments  # TODO add assembly parameters
 install_=false
 outputDir=""
 toolsDir=""
-while getopts "hi:o:t:" option
+pathFlag=false
+while getopts "hi:o:t:p" option
 do
 	case $option in
 		h) 	echo $helpMessage;;
 		i) 	install_=true;;
 		o) 	outputDir=$OPTARG;;
 		t) 	toolsDir=$OPTARG;;
+		p) 	pathFlag=true;;
 		*) 	echo "UNKNOWN OPTION $OPTARG PROVIDED"
 			exit;;
 	esac
 done
+
+# Parse positional arguments
 inputDir=${@:$OPTIND:1}
+
+# Make required directories
 if [ -z $outputDir ]; then
 do
 	outputDir=($(dirname $inputDir)/output)
 done
+mkdir outputDir
 if [ -z $toolsDir ]; then
 do
 	toolsDir=($(dirname $inputDir)/toolsDir)
 done
+mkdir toolsDir
+
+# Modify PATH variable and startup file
+if install_ && ! pathFlag
+then
+	if ! [[ $PATH =~ $toolsDir ]]
+	then
+		export PATH=$PATH:$toolsDir
+		for startupFile in .bash_profile .bash_login .profile
+		do
+			if [ -f ~/$startupFile ]
+				printf "\n\nif ! [[ \$PATH =~ $toolsDir ]]\nthen\n\texport PATH=\$PATH:$toolsDir\nfi\n" >> ~/$startupFile
+				break
+			fi
+		done
+	fi
+fi
 
 #Install tools
 if $install_
@@ -88,7 +114,7 @@ if $install_
 			conda install $dependency
 		done
 		git clone https://github.com/vice87/gam-ngs $toolsDir/gam-ngs
-		mkdir $toolsDir/gam-ngs/build
+		mkdir -p $toolsDir/gam-ngs/build
 		boostPath=$CONDA_PREFIX/include/boost
 		sparsehashPath=$CONDA_PREFIX/include/sparsehash
 		cmake -DBOOST_ROOT=$boostPath -DBoost_NO_BOOST_CMAKE=TRUE -DSPARSEHASH_ROOT=$sparsehashPath $toolsDir/gam-ngs/
