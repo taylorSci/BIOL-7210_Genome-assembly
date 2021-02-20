@@ -27,3 +27,4 @@ for file in *
 do
     mv "$file" "${file/_1_fp.fq.gz*/.skesa.fa}"
 done
+#hello
