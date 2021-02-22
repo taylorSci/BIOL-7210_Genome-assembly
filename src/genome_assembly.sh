@@ -3,12 +3,13 @@
 # TODO Finalize help message
 helpMessage="
 USAGE
-	genome_assembly [OPTIONS...] INPUT_READS_DIRECTORY
+	genome_assembly [OPTIONS...] <INPUT_READS_DIRECTORY>
 
 DESCRIPTION
 A script to install and run a pipeline which assembles sets of paired-end reads in FASTQ format into  genome assemblies with multiple tools.
 Script can be run with or without tool installation option (for pipeline reuse).
 Preprocesses input reads, provides assembly quality metrics, and attempts to reconcile assemblies into meta-assemblies.
+Sequence alignment maps are generated on assemblies to assist with QC and reconciliation.
 Developed on Illumina bridge amplification dye sequencing data.
 
 PREREQUISITES:
@@ -30,11 +31,11 @@ TOOLS INSTALLED/INVOKED:
 		GAM-NGS
 
 OPTIONS
-	-h 					display help
-	-i 					install pipeline
-	-o 	OUTPUT_FOLDER 	(defaults to sibling ('../output') of input reads directory)
-	-t 	TOOLS_FOLDER 	directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
-	-p 					do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
+	-h 						display help
+	-i 						install pipeline
+	-o 	<OUTPUT_FOLDER> 	(defaults to sibling ('../output') of input reads directory)
+	-t 	<TOOLS_FOLDER>	 	directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
+	-p 						do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
 "
 
 # Parse optional arguments  # TODO add assembly parameters
@@ -119,6 +120,7 @@ if $install_
 		sparsehashPath=$CONDA_PREFIX/include/sparsehash
 		cmake -DBOOST_ROOT=$boostPath -DBoost_NO_BOOST_CMAKE=TRUE -DSPARSEHASH_ROOT=$sparsehashPath $toolsDir/gam-ngs/
 		make $toolsDir/gam-ngs/build
+		ln $toolsDir/gam-ngs/bin/gam-create $toolsDir/gam-create
 	fi
 fi
 
@@ -128,7 +130,7 @@ assemblers="ABySS SKESA SPAdes"
 echo "Analyzing and trimming reads..."
 
 
-# Assemble genomes
+# Assemble genomes & generating sequence alignment maps
 echo "Assembling with ABySS..."
 
 
