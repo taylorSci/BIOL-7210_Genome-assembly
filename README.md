@@ -2,7 +2,26 @@
 
 Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline.
 
-Part 1: Pre-assembly QC using fastp and consolidation of all 
+Part 1: Pre-assembly QC using fastp and consolidation of all analysis filed using multiqc.
+	
+Fastp is an all-in-one trimming and filtering tool for raw fastq files. Outputs are quality controlled reads denoted by <isolatename>_fp_1.fq.gz and <isolatename>_fp_2.fq.gz, and fastp.html and fastp.json files used for visualization of filter results.
+
+
+The fastp command used was as
+fastp -i *_1.fq.gz -I *_2.fq.gz -o ${dir}_1_fp.fq.gz -O ${dir}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M 28 -W 20 -e 28 -c
+
+Options used:
+-i, -I, -o, -O indicate input and output file names for both reads, 
+-f 5;	trim of the first 5 bases for both reads
+-t 5;	trim of the last 5 bases for both reads
+-5 -3;	cut front and cut tail sliding windows will be used
+-M 28;	the mean quality cutoff for the sliding window (phred score >= 28)
+-W 20;	number of bases in sliding window
+-e 28;	get rid of any reads that have an everage quality score below 28
+-c;	base correction
+
+
+Part2: De-novo assemblers using skesa, ABySS, and SPAdes assemblers
 
 USAGE
 	genome_assembly [OPTIONS...] INPUT_READS_DIRECTORY
