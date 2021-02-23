@@ -49,7 +49,8 @@ Tc=0.75
 while getopts "hi:o:t:p" option
 do
 	case $option in
-		h) 	echo $helpMessage;;
+		h) 	echo $helpMessage
+			exit;;
 		i) 	install_=true;;
 		o) 	outputDir=$OPTARG;;
 		t) 	toolsDir=$OPTARG;;
@@ -65,15 +66,15 @@ done
 inputDir=${@:$OPTIND:1}
 
 # Make required directories
-if [ -z $outputDir ]; then
-do
+if [ -z $outputDir ]
+then
 	outputDir=($(dirname $inputDir)/output)
-done
+fi
 mkdir -p $outputDir
-if [ -z $toolsDir ]; then
-do
+if [ -z $toolsDir ]
+then
 	toolsDir=($(dirname $inputDir)/toolsDir)
-done
+fi
 mkdir -p $toolsDir
 
 # Modify PATH variable and startup file
@@ -85,6 +86,7 @@ then
 		for startupFile in .bash_profile .bash_login .profile
 		do
 			if [ -f ~/$startupFile ]
+			then
 				printf "\n\nif ! [[ \$PATH =~ $toolsDir ]]\nthen\n\texport PATH=\$PATH:$toolsDir\nfi\n" >> ~/$startupFile
 				break
 			fi
@@ -94,6 +96,7 @@ fi
 
 #Install tools
 if $install_
+then
 	if ! (type git && type conda) &> /dev/null
 	then
 		echo "git and conda are required to run installations."
@@ -133,7 +136,6 @@ if $install_
 fi
 
 isolates=$(ls $inputDir | grep -o -E "CGT[0-9]{4}")
-assemblers="ABySS SKESA SPAdes"
 ABySSBams=$outputDir/abyss/abyss_output/bwa_mem_corrected/\${PATTERN}_sorted.bam
 ABySSContigs=$outputDir/abyss/abyss_output/corrected_fasta/abyss_\$PATTERN.fa
 ABySSReapr=$outputDir/REAPR/QA_ABYSS/\${PATTERN}_QA/05.summary.report.txt
@@ -143,7 +145,7 @@ SKESAReapr=$outputDir/REAPR/QA_SKESA/\${PATTERN}_QA/05.summary.report.txt
 SPAdesBams=$outputDir/SPAdes/SPAdes_bam_mem/\${PATTERN}_sorted.bam
 SPAdesContigs=$outputDir/SPAdes/SPAdes_Output/\$PATTERN/contigs.fasta
 SPAdesReapr=$outputDir/REAPR/QA_SPAdes/\${PATTERN}_QA/05.summary.report.txt
-reconDir=$outputDir/assembly-reconciliation/
+reconDir=$outputDir/assembly-reconciliation
 
 # Preprocess reads
 echo "Analyzing and trimming reads..."
@@ -169,25 +171,27 @@ done
 echo "Reconciling assemblies..."
 tmpDir=$reconDir/tmp
 mkdir -p $tmpDir
+rm -f $reconDir/merging-order.txt
 
 # Tests whether the first assembly is better than the second
 # Compares by number of errors, then number of warnings, then N50
 # numErrs1 numErrs2 numWarns1 numWarns2 n50_1 n50_2
-compare_assemblies {
-	if $1 < $2
+compare_assemblies() {
+	if [[ $1 < $2 ]]
 	then
 		echo true
-	elif $1 > $2
+	elif [[ $1 > $2 ]]
+	then
 		echo false
 	else
-		if $3 < $4
+		if [[ $3 < $4 ]]
 		then
 			echo true
-		elif $3 > $4
+		elif [[ $3 > $4 ]]
 		then
 			echo false
 		else
-			if $5 > $6
+			if [[ $5 > $6 ]]
 			then
 				echo true
 			else
@@ -196,15 +200,15 @@ compare_assemblies {
 		fi
 	fi
 }
-for PATTERN in isolates
+for PATTERN in $isolates
 do
 	echo "Merging $PATTERN..."
-	for assembler in assemblers
+	for assembler in ABySS SKESA SPAdes
 	do
 		# Index BAMs, make BAM list files
 		eval "samtools index $(eval "echo \$${assembler}Bams")"
-		eval "printf $(eval "echo \$${assembler}Bams\n")" > $reconDir/${assembler}_$PATTERN.bamlist
-		printf "200 800" >> $reconDir/${assembler}_$PATTERN.bamlist
+		eval "echo $(eval "echo \$${assembler}Bams")" > $reconDir/${assembler}_$PATTERN.bamlist
+		echo "200 800" >> $reconDir/${assembler}_$PATTERN.bamlist
 		#eval "ln $(eval "echo \$${assembler}Contigs") $recondir/${assembler}_$PATTERN"
 
 		# Extract quality metrics
@@ -242,7 +246,6 @@ do
 			first=SPAdes
 			second=SKESA
 			third=ABySS
-			fi
 		else
 			if $ret3
 			then
@@ -258,22 +261,22 @@ do
 	fi
 
 	# Merge first two
-	eval "gam-create $(eval "echo --master-bam \$${first}Bams --slave-bams \$${second}Bams --min-block-size $Bmin --output $tmpDir/intermediate")"
-	eval "gam-merge $(eval "echo --master-bam \$${first}Bams --slave-bams \$${second}Bams --blocks-file $tmpDir/intermediate.blocks --master-fasta \$${first}Contigs --slave-fasta \$${second}Contigs --output $tmpDir/intermediate")"
+	gam-create --master-bam $reconDir/${first}_$PATTERN.bamlist --slave-bam $reconDir/${second}_$PATTERN.bamlist --min-block-size $Bmin --output $tmpDir/intermediate
+	eval "gam-merge $(eval "echo --master-bam $reconDir/${first}_$PATTERN.bamlist --slave-bam $reconDir/${second}_$PATTERN.bamlist --blocks-file $tmpDir/intermediate.blocks --master-fasta \$${first}Contigs --slave-fasta \$${second}Contigs --output $tmpDir/intermediate")"
 
 	# Prep partially merged assembly
 	bwa index $tmpDir/intermediate.gam.fasta
-	bwa mem $tmpDir/intermediate.gam.fasta $inputDir/$PATTERN/$PATTERN_1.fq.gz $inputDir/$PATTERN/$PATTERN_2.fq.gz > $tmpDir/intermediate.sam
+	bwa mem $tmpDir/intermediate.gam.fasta $inputDir/$PATTERN/${PATTERN}_1.fq.gz $inputDir/$PATTERN/${PATTERN}_2.fq.gz > $tmpDir/intermediate.sam
 	samtools fixmate -O bam $tmpDir/intermediate.sam $tmpDir/intermediate.bam
 	samtools sort -O bam -o $tmpDir/intermediate_sorted.bam -T temp $tmpDir/intermediate.bam
 	samtools index $tmpDir/intermediate_sorted.bam
-	printf $tmpDir/intermediate_sorted.bam\n > $tmpDir/intermediate.bamlist
-	printf "200 800" >> $tmpDir/intermediate.bamlist
+	echo $tmpDir/intermediate_sorted.bam > $tmpDir/intermediate.bamlist
+	echo "200 800" >> $tmpDir/intermediate.bamlist
 
 	#Complete merging
-	eval "gam-create $(eval "echo --master-bam $tmpDir/intermediate_sorted.bam --slave-bams \$${third}Bams --min-block-size $Bmin --output $tmpDir/intermediate")"
-	eval "gam-merge $(eval "echo --master-bam $tmpDir/intermediate_sorted.bam --slave-bams \$${third}Bams --blocks-file $tmpDir/intermediate.blocks --master-fasta $tmpDir/intermediate.gam.fasta --slave-fasta \$${third}Contigs --output $outputDir/$PATTERN_meta.fa")"
-	printf $PATTERN\n$first:$second:$third >> merging-order.txt
+	gam-create --master-bam $tmpDir/intermediate.bamlist --slave-bam $reconDir/${third}_$PATTERN.bamlist --min-block-size $Bmin --output $tmpDir/intermediate
+	eval "gam-merge $(eval "echo --master-bam $tmpDir/intermediate.bamlist --slave-bam $reconDir/${third}_$PATTERN.bamlist --blocks-file $tmpDir/intermediate.blocks --master-fasta $tmpDir/intermediate.gam.fasta --slave-fasta \$${third}Contigs --output $reconDir/${PATTERN}_meta")"
+	echo -e "$PATTERN\t$first:$second:$third" >> $reconDir/merging-order.txt
 done
 
 echo "Analyzing meta-assembly output..."
