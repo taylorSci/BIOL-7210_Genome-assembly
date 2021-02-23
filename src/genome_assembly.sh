@@ -1,4 +1,4 @@
-#!/bash/bin
+#!/usr/bin/bash
 
 # TODO Finalize help message
 helpMessage="
@@ -26,16 +26,17 @@ TOOLS INSTALLED/INVOKED:
 		SPAdes
 	Assembly quality control:
 		REAPR
-		dnAQET
 	Assembly reconciliation:
 		GAM-NGS
 
 OPTIONS
-	-h 						display help
-	-i 						install pipeline
-	-o 	<OUTPUT_FOLDER> 	(defaults to sibling ('../output') of input reads directory)
-	-t 	<TOOLS_FOLDER>	 	directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
-	-p 						do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
+	-h 										display help
+	-i 										install pipeline
+	-o 	<OUTPUT_FOLDER> 					(defaults to sibling ('../output') of input reads directory)
+	-t 	<TOOLS_FOLDER>	 					directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
+	-p 										do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
+	-b 	<MIN_BLOCK_SIZE>			10		GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
+	-c 	<BLOCK_COVERAGE_THRESHOLD> 	0.75	GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
 "
 
 # Parse optional arguments  # TODO add assembly parameters
@@ -43,6 +44,8 @@ install_=false
 outputDir=""
 toolsDir=""
 pathFlag=false
+Bmin=10
+Tc=0.75
 while getopts "hi:o:t:p" option
 do
 	case $option in
@@ -51,6 +54,8 @@ do
 		o) 	outputDir=$OPTARG;;
 		t) 	toolsDir=$OPTARG;;
 		p) 	pathFlag=true;;
+		b) 	Bmin=$OPTARG;;
+		c) 	Tc=$OPTARG;;
 		*) 	echo "UNKNOWN OPTION $OPTARG PROVIDED"
 			exit;;
 	esac
@@ -64,15 +69,15 @@ if [ -z $outputDir ]; then
 do
 	outputDir=($(dirname $inputDir)/output)
 done
-mkdir outputDir
+mkdir $outputDir
 if [ -z $toolsDir ]; then
 do
 	toolsDir=($(dirname $inputDir)/toolsDir)
 done
-mkdir toolsDir
+mkdir $toolsDir
 
 # Modify PATH variable and startup file
-if install_ && ! pathFlag
+if $install_ && ! $pathFlag
 then
 	if ! [[ $PATH =~ $toolsDir ]]
 	then
@@ -95,6 +100,13 @@ if $install_
 		exit
 	fi
 
+	# TODO Add dependencies for all tools here
+	echo "Installing required dependencies..."
+	for dependency in gxx_linux_64 cmake zlib boost google-sparsehash bwa samtools
+	do
+		conda install $dependency
+	done
+
 	echo "Installing FastQC..."
 
 	echo "Installing ABySS..."
@@ -110,10 +122,6 @@ if $install_
 	if ! (type gam-create && type gam-merge) &> /dev/null
 	then
 		echo "Installing GAM-NGS..."
-		for dependency in gxx_linux_64 cmake zlib boost google-sparsehash bwa samtools
-		do
-			conda install $dependency
-		done
 		git clone https://github.com/vice87/gam-ngs $toolsDir/gam-ngs
 		mkdir -p $toolsDir/gam-ngs/build
 		boostPath=$CONDA_PREFIX/include/boost
@@ -124,7 +132,18 @@ if $install_
 	fi
 fi
 
+isolates=$(ls $inputDir | grep -o -E "CGT[0-9]{4}")
 assemblers="ABySS SKESA SPAdes"
+ABySSBams=$outputDir/abyss/abyss_output/bwa_mem_corrected/\${PATTERN}_sorted.bam
+ABySSContigs=$outputDir/abyss/abyss_output/corrected_fasta/abyss_\$PATTERN.fa
+ABySSReapr=$outputDir/REAPR/QA_ABYSS/\${PATTERN}_QA/05.summary.report.txt
+SKESABams=$outputDir/skesa/bam_mem/\${PATTERN}_sorted_mem.bam
+SKESAContigs=$outputDir/skesa/skesa_outputs/\$PATTERN.skesa_contig.fa
+SKESAReapr=$outputDir/REAPR/QA_SKESA/\${PATTERN}_QA/05.summary.report.txt
+SPAdesBams=$outputDir/SPAdes/SPAdes_bam_mem/\${PATTERN}_sorted.bam
+SPAdesContigs=$outputDir/SPAdes/SPAdes_Output/\$PATTERN/contigs.fasta
+SPAdesReapr=$outputDir/REAPR/QA_SPAdes/\${PATTERN}_QA/05.summary.report.txt
+reconDir=$outputDir/assembly-reconciliation/
 
 # Preprocess reads
 echo "Analyzing and trimming reads..."
@@ -139,16 +158,105 @@ echo "Assembling with SKESA..."
 
 echo "Assembling with SPAdes..."
 
-
-# Reconcile assemblies
+# Assembly QC with REAPR
 for assembler in assemblers
 do
 	echo "Analyzing $assembler output..."
-
+	
 done
 
+# Reconcile assemblies
 echo "Reconciling assemblies..."
+tmpDir=$reconDir/tmp
+mkdir $tmpDir
 
+# Tests whether the first assembly is better than the second
+# Compares by number of errors, then number of warnings, then N50
+# numErrs1 numErrs2 numWarns1 numWarns2 n50_1 n50_2
+compare_assemblies {
+	if $1 < $2
+	then
+		echo true
+	elif $1 > $2
+		echo false
+	else
+		if $3 < $4
+		then
+			echo true
+		elif $3 > $4
+		then
+			echo false
+		else
+			if $5 > $6
+			then
+				echo true
+			else
+				echo false
+			fi
+		fi
+	fi
+}
+for PATTERN in isolates
+do
+	echo "Merging $PATTERN..."
+	for assembler in assemblers
+	do
+		# Index BAMs, make BAM list files
+		eval "samtools index $(eval "echo \$${assembler}Bams")"
+		eval "printf $(eval "echo \$${assembler}Bams\n")" > $reconDir/${assembler}_$PATTERN.bamlist
+		printf "200 800" >> $reconDir/${assembler}_$PATTERN.bamlist
+		#eval "ln $(eval "echo \$${assembler}Contigs") $recondir/${assembler}_$PATTERN"
+
+		# Extract quality metrics
+		declare ${assembler}NumErrs=$(eval "grep -E '[0-9]+ errors:' $(eval "echo \$${assembler}Reapr") | grep -E -o '[0-9]+'")
+		declare ${assembler}NumWarns=$(eval "grep -E '[0-9]+ warnings:' $(eval "echo \$${assembler}Reapr") | grep -E -o '[0-9]+'")
+		declare ${assembler}N50=$(eval "grep -E 'N50' $(eval "echo \$${assembler}Reapr") | head -n1 | sed -E 's/N50 = ([0-9]+).*/\1/'")
+	done
+	ret1=$(compare_assemblies $ABySSNumErrs $SKESANumErrs $ABySSNumWarns $SKESANumWarns $ABySSN50 $SKESAN50)
+	ret2=$(compare_assemblies $SPAdesNumErrs $SKESANumErrs $SPAdesNumWarns $SKESANumWarns $SPAdesN50 $SKESAN50)
+	ret3=$(compare_assemblies $ABySSNumErrs $SPAdesNumErrs $ABySSNumWarns $SPAdesNumWarns $ABySSN50 $SPAdesN50)
+	if $ret1
+	then
+		if $ret2
+		then
+			if $ret3
+			then
+				first=ABySS
+				second=SPAdes
+				third=SKESA
+			else
+				first=SPAdes
+				second=ABySS
+				third=SKESA
+			fi
+		else
+			first=ABySS
+			second=SKESA
+			third=SPAdes
+		fi
+	else
+		if $ret2
+		then
+			first=SPAdes
+			second=SKESA
+			third=ABySS
+			fi
+		else
+			if $ret3
+			then
+				first=SKESA
+				second=ABySS
+				third=SPAdes
+			else
+				first=SKESA
+				second=SPAdes
+				third=ABySS
+			fi
+		fi
+	fi
+	eval "gam-create $(eval "echo --master-bam \$${first}Bams --slave-bams \$${second}Bams --min-block-size $Bmin --output $tmpDir/intermediate")"
+	eval "gam-merge $(eval "echo --master-bam \$${first}Bams --slave-bams \$${second}Bams --blocks-file $tmpDir/intermediate.blocks --master-fasta \$${first}Contigs --slave-fasta \$${second}Contigs --output $tmpDir/intermediate")"
+done
 
 echo "Analyzing meta-assembly output..."
 
