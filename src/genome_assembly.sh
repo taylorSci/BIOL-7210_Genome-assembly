@@ -74,11 +74,23 @@ if $install_
 
 	echo "Installing FastQC..."
 
+	# Install ABySS and its dependencies
 	echo "Installing ABySS..."
+	conda install -c bioconda abyss
 
+	# Install SKESA and its dependencies
 	echo "Installing SKESA..."
+	conda install -c bioconda skesa
 
 	echo "Installing SPAdes..."
+	
+	# Install bwa and its dependencies
+	echo "Installing bwa..."
+	conda install -c bioconda bwa
+
+	# Install samtools and its dependencies
+	echo "Installing samtools"
+	conda install -c bioconda samtools
 
 	echo "Installing REAPR..."
 
@@ -114,16 +126,17 @@ echo "Assembling with SKESA..."
 #TAYLOR, I AM MAKING THE HARD LINK TO SKESA HIDDEN. PLEASE FEEL FREE TO CHANGE THIS IF IT SHOULD BE UNHIDDEN.
 ln $inputDir/$toolsDir/skesa/SKESA/skesa .run_skesa
 mkdir $outputDir/assemblies/skesa/
-skesa_in=($(ls $outputDir/read-QC/fastp))
+skesa_in=($(ls $outputDir/read_QC/fastp))
 
 for i in "${skesa_in[@]}";
 do
-    ./.run_skesa --reads $outputDir/read-QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read-QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores -- memory $mem > $outputDir/assemblies/skesa/$i.skesa.fa
+    ./.run_skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores -- memory $mem > $outputDir/assemblies/skesa/$i.skesa.fa
 done
 echo "Contigs generated for SKESA"
 
 echo "Assembling with SPAdes..."
 
+# generate BAM files for post Assembly QC
 echo "Generating BAM files from ABySS, SKESA, and SPAdes contigs"
 # TAYLOR, I'VE IMPLEMENTED THE BAM FILE GENERATION FOR SPADES AND SKESA AND HAVE TESTED IT. I NEED TO TALK TO YOU ABOUT HOW TO DO THIS FOR ABYSS (DEADLY WHITESPACES LOL)
 # I'VE ALSO EDITED THE SCRIPT LAYOUT WORD DOC SLIGHTLY TO INCLUDE A "BAM_FILES" DIRECTORY IN OUTPUTS WHERE YOU CAN GRAB EVERYTHING FROM
@@ -132,24 +145,22 @@ mkdir temp
 cd temp
 mkdir $outputDir/bam_files
 
-file_prefix=($(ls $outputDir/read-QC/fastp))
+file_prefix=($(ls $outputDir/read_QC/fastp))
 
 for i in "${file_prefix[@]}";
 do
     bwa index $outputDir/assemblies/skesa/${i}.skesa.fa
-    bwa mem $outputDir/assemblies/skesa/${i}.skesa.fa $outputDir/read-QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read-QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}.skesa.sam
+    bwa mem $outputDir/assemblies/skesa/${i}.skesa.fa $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}.skesa.sam
     samtools fixmate -O bam ./${i}.skesa.sam ./${i}.skesa.bam
     samtools sort -O bam -o $outputDir/bam_files/${i}_sorted.skesa.bam -T temp ./${i}.skesa.sam
 
     bwa index $outputDir/assemblies/SPAdes/contigs/${i}_SPAdes.fasta
-    bwa mem $outputDir/assemblies/SPAdes/contigs/${i}_SPAdes.fasta $outputDir/read-QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read-QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}_SPAdes.sam
+    bwa mem $outputDir/assemblies/SPAdes/contigs/${i}_SPAdes.fasta $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}_SPAdes.sam
     samtools fixmate -O bam ./${i}_SPAdes.sam ./${i}_SPAdes.bam
     samtools sort -O bam -o $outputDir/bam_files/${i}_sorted.SPAdes.bam -T temp ./${i}_SPAdes.sam
 done
-
 cd ..
 rm -r temp
-
 
 # Reconcile assemblies
 for assembler in assemblers
