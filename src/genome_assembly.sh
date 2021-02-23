@@ -69,12 +69,12 @@ if [ -z $outputDir ]; then
 do
 	outputDir=($(dirname $inputDir)/output)
 done
-mkdir $outputDir
+mkdir -p $outputDir
 if [ -z $toolsDir ]; then
 do
 	toolsDir=($(dirname $inputDir)/toolsDir)
 done
-mkdir $toolsDir
+mkdir -p $toolsDir
 
 # Modify PATH variable and startup file
 if $install_ && ! $pathFlag
@@ -168,7 +168,7 @@ done
 # Reconcile assemblies
 echo "Reconciling assemblies..."
 tmpDir=$reconDir/tmp
-mkdir $tmpDir
+mkdir -p $tmpDir
 
 # Tests whether the first assembly is better than the second
 # Compares by number of errors, then number of warnings, then N50
