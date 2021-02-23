@@ -75,6 +75,7 @@ if $install_
 	echo "Installing SKESA..."
 
 	echo "Installing SPAdes..."
+	conda install -c bioconda spades
 
 	echo "Installing REAPR..."
 
@@ -110,7 +111,18 @@ echo "Assembling with SKESA..."
 
 
 echo "Assembling with SPAdes..."
+mkdir $outputDir/assemblies/SPAdes
+mkdir $outputDir/assemblies/SPAdes/contigs
+mkdir $outputDir/assemblies/SPAdes/extra
 
+files=($(ls $outputDir/read_QC/fastp/))
+
+
+for i in "${files[@]}";
+do 
+  spades.py -1 $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz -2 $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz -o $outputDir/assemblies/SPAdes/extra/$i -t 4
+  cp $outputDir/assemblies/SPAdes/extra/$i/contigs.fasta $outputDir/assemblies/SPAdes/contigs/${i}_SPAdes.fasta
+done
 
 # Reconcile assemblies
 for assembler in assemblers
