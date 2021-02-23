@@ -212,6 +212,8 @@ do
 		declare ${assembler}NumWarns=$(eval "grep -E '[0-9]+ warnings:' $(eval "echo \$${assembler}Reapr") | grep -E -o '[0-9]+'")
 		declare ${assembler}N50=$(eval "grep -E 'N50' $(eval "echo \$${assembler}Reapr") | head -n1 | sed -E 's/N50 = ([0-9]+).*/\1/'")
 	done
+
+	# Determine assembly order
 	ret1=$(compare_assemblies $ABySSNumErrs $SKESANumErrs $ABySSNumWarns $SKESANumWarns $ABySSN50 $SKESAN50)
 	ret2=$(compare_assemblies $SPAdesNumErrs $SKESANumErrs $SPAdesNumWarns $SKESANumWarns $SPAdesN50 $SKESAN50)
 	ret3=$(compare_assemblies $ABySSNumErrs $SPAdesNumErrs $ABySSNumWarns $SPAdesNumWarns $ABySSN50 $SPAdesN50)
@@ -254,8 +256,24 @@ do
 			fi
 		fi
 	fi
+
+	# Merge first two
 	eval "gam-create $(eval "echo --master-bam \$${first}Bams --slave-bams \$${second}Bams --min-block-size $Bmin --output $tmpDir/intermediate")"
 	eval "gam-merge $(eval "echo --master-bam \$${first}Bams --slave-bams \$${second}Bams --blocks-file $tmpDir/intermediate.blocks --master-fasta \$${first}Contigs --slave-fasta \$${second}Contigs --output $tmpDir/intermediate")"
+
+	# Prep partially merged assembly
+	bwa index $tmpDir/intermediate.gam.fasta
+	bwa mem $tmpDir/intermediate.gam.fasta $inputDir/$PATTERN/$PATTERN_1.fq.gz $inputDir/$PATTERN/$PATTERN_2.fq.gz > $tmpDir/intermediate.sam
+	samtools fixmate -O bam $tmpDir/intermediate.sam $tmpDir/intermediate.bam
+	samtools sort -O bam -o $tmpDir/intermediate_sorted.bam -T temp $tmpDir/intermediate.bam
+	samtools index $tmpDir/intermediate_sorted.bam
+	printf $tmpDir/intermediate_sorted.bam\n > $tmpDir/intermediate.bamlist
+	printf "200 800" >> $tmpDir/intermediate.bamlist
+
+	#Complete merging
+	eval "gam-create $(eval "echo --master-bam $tmpDir/intermediate_sorted.bam --slave-bams \$${third}Bams --min-block-size $Bmin --output $tmpDir/intermediate")"
+	eval "gam-merge $(eval "echo --master-bam $tmpDir/intermediate_sorted.bam --slave-bams \$${third}Bams --blocks-file $tmpDir/intermediate.blocks --master-fasta $tmpDir/intermediate.gam.fasta --slave-fasta \$${third}Contigs --output $outputDir/$PATTERN_meta.fa")"
+	printf $PATTERN\n$first:$second:$third >> merging-order.txt
 done
 
 echo "Analyzing meta-assembly output..."
