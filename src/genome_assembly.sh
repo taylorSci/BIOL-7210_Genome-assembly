@@ -37,6 +37,8 @@ OPTIONS
 	-p 										do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
 	-b 	<MIN_BLOCK_SIZE>			10		GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
 	-c 	<BLOCK_COVERAGE_THRESHOLD> 	0.75	GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
+	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
+	-m	[MEMORY] 					10		Amount of memory to allocate to the pipeline (GB)
 "
 
 # Parse optional arguments  # TODO add assembly parameters
@@ -46,7 +48,9 @@ toolsDir=""
 pathFlag=false
 Bmin=10
 Tc=0.75
-while getopts "hi:o:t:p" option
+cores=6
+mem=10
+while getopts "hio:t:pb:c:m:n:" option
 do
 	case $option in
 		h) 	echo $helpMessage
@@ -57,6 +61,8 @@ do
 		p) 	pathFlag=true;;
 		b) 	Bmin=$OPTARG;;
 		c) 	Tc=$OPTARG;;
+		n) 	cores=$OPTARG;;
+		m) 	mem=$OPTARG;;
 		*) 	echo "UNKNOWN OPTION $OPTARG PROVIDED"
 			exit;;
 	esac
@@ -112,9 +118,13 @@ then
 
 	echo "Installing FastQC..."
 
+	# Install ABySS and its dependencies
 	echo "Installing ABySS..."
+	conda install -c bioconda abyss
 
+	# Install SKESA and its dependencies
 	echo "Installing SKESA..."
+	conda install -c bioconda skesa
 
 	echo "Installing SPAdes..."
 	conda install -c bioconda spades
@@ -136,10 +146,12 @@ then
 	fi
 fi
 
-fastpDir=$outputDir/read_QC/fastp
 isolates=$(ls $fastpDir)
+assemblies="ABySS SKESA SPAdes"
+
+fastpDir=$outputDir/read_QC/fastp
+contigPath=$outputDir/assemblies/\$assembly/contigs/\${PATTERN}_$assembly.fasta
 bamPath=$outputDir/bam_files/\${PATTERN}_sorted.\$assembly.bam
-contigPath=$outputDir/assemblies/\$assembly/contigs/\${PATTERN}_\$assembly.fasta
 qaPath=$outputDir/REAPR/QA_\$assembly/\${PATTERN}_QA/05.summary.report.txt
 reconDir=$outputDir/assembly-reconciliation
 
@@ -150,17 +162,6 @@ SPAdesDir=$outputDir/assemblies/SPAdes
 ABySSContigs=$ABySSDir/contigs/\${PATTERN}_ABySS.fasta
 SKESAContigs=$SKESADir/contigs/\${PATTERN}_SKESA.fasta
 SPAdesContigs=$SPAdesDir/contigs/\${PATTERN}_SPAdes.fasta
-
-####
-ABySSReapr=$outputDir/REAPR/QA_ABYSS/\${PATTERN}_QA/05.summary.report.txt
-SKESAReapr=$outputDir/REAPR/QA_SKESA/\${PATTERN}_QA/05.summary.report.txt
-SPAdesReapr=$outputDir/REAPR/QA_SPAdes/\${PATTERN}_QA/05.summary.report.txt
-
-ABySSBams=$bamDir/\${PATTERN}_sorted.ABySS.bam
-SKESABams=$bamDir/\${PATTERN}_sorted.SKESA.bam
-SPAdesBams=$bamDir/\${PATTERN}_sorted.SPAdes.bam
-####
-
 
 # Preprocess reads
 echo "Analyzing and trimming reads..."
@@ -173,12 +174,19 @@ mkdir -p $ABySSDir/extra
 
 for i in $isolates;
 do 
-  abyss-pe k=70 in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
-  ln $ABySSDir/extra/$i/${i}-contigs.fa $ABySSDir/contigs/${i}_ABySS.fasta
+	abyss-pe k=70 in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
+	ln $ABySSDir/extra/$i/${i}-contigs.fa $ABySSDir/contigs/${i}_ABySS.fasta
 done
 
 echo "Assembling with SKESA..."
+mkdir -p $SKESADir/contigs
+mkdir -p $SKESADir/extra
 
+for i in $isolates;
+do
+	skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores -- memory $mem > $outputDir/assemblies/SKESA/${i}_SKESA.fasta
+	ln $SKESADir/extra/$i/${i}-contigs.fa $SKESADir/contigs/${i}_SKESA.fasta
+done
 
 echo "Assembling with SPAdes..."
 mkdir -p $SPAdesDir/contigs
@@ -186,12 +194,31 @@ mkdir -p $SPAdesDir/extra
 
 for i in $isolates;
 do 
-  spades.py -1 $fastpDir/$i/${i}_1_fp.fq.gz -2 $fastpDir/$i/${i}_2_fp.fq.gz -o $SPAdesDir/extra/$i -t 4
-  ln $SPAdesDir/extra/$i/contigs.fasta $SPAdesDir/contigs/${i}_SPAdes.fasta
+	spades.py -1 $fastpDir/$i/${i}_1_fp.fq.gz -2 $fastpDir/$i/${i}_2_fp.fq.gz -o $SPAdesDir/extra/$i -t 4
+	ln $SPAdesDir/extra/$i/contigs.fasta $SPAdesDir/contigs/${i}_SPAdes.fasta
+done
+
+# TODO NEED AEKANSH'S REAPR CONTIG FILE REPAIR CODE HERE
+# Reformat names of ABySS contigs
+
+# generate BAM files for post-assembly QC
+echo "Generating BAM files from ABySS, SKESA, & SPAdes contigs"
+
+for PATTERN in $isolates;
+do
+	for assembly in $assemblies
+	do
+		eval "bwa index $(echo $contigPath)"
+		eval "bwa mem $(echo "$contigPath") $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $fastpDir/$PATTERN/${PATTERN}_2.fq.gz" > $outputDir/bam_files/${PATTERN}.$assembly.sam
+		samtools fixmate -O bam $outputDir/bam_files/$PATTERN.$assembly.sam $outputDir/bam_files/$PATTERN.$assembly.bam
+		eval "samtools sort -O bam -o $(echo $bamPath) -T temp $outputDir/bam_files/$PATTERN.$assembly.bam"
+		eval "samtools index $(echo $bamPath)"
+	done
+
 done
 
 # Assembly QC with REAPR
-for assembler in assemblers
+for assembly in $assemblies
 do
 	echo "Analyzing $assembler output..."
 	
@@ -235,11 +262,9 @@ do
 	echo "Merging $PATTERN..."
 	for assembler in ABySS SKESA SPAdes
 	do
-		# Index BAMs, make BAM list files
-		eval "samtools index $(echo $bamPath)"
+		# Make BAM list files
 		eval "echo $(echo $bamPath)" > $reconDir/${assembler}_$PATTERN.bamlist
 		echo "200 800" >> $reconDir/${assembler}_$PATTERN.bamlist
-		#eval "ln $(eval "echo \$${assembler}Contigs") $recondir/${assembler}_$PATTERN"
 
 		# Extract quality metrics
 		declare ${assembler}NumErrs=$(eval "grep -E '[0-9]+ errors:' $(echo $qaPath) | grep -E -o '[0-9]+'")
@@ -317,3 +342,4 @@ done
 
 echo "Analyzing meta-assembly output..."
 
+# TODO Provide folder with clearn output
