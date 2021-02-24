@@ -277,6 +277,12 @@ do
 	gam-create --master-bam $tmpDir/intermediate.bamlist --slave-bam $reconDir/${third}_$PATTERN.bamlist --min-block-size $Bmin --output $tmpDir/intermediate
 	eval "gam-merge $(eval "echo --master-bam $tmpDir/intermediate.bamlist --slave-bam $reconDir/${third}_$PATTERN.bamlist --blocks-file $tmpDir/intermediate.blocks --master-fasta $tmpDir/intermediate.gam.fasta --slave-fasta \$${third}Contigs --output $reconDir/${PATTERN}_meta")"
 	echo -e "$PATTERN\t$first:$second:$third" >> $reconDir/merging-order.txt
+
+	# Align BAMs for meta-QC
+	bwa index $reconDir/${PATTERN}_meta.gam.fasta
+	bwa mem $reconDir/${PATTERN}_meta.gam.fasta $inputDir/$PATTERN/${PATTERN}_1.fq.gz $inputDir/$PATTERN/${PATTERN}_2.fq.gz > $reconDir/${PATTERN}_meta.sam
+	samtools fixmate -O bam $reconDir/${PATTERN}_meta.sam $reconDir/${PATTERN}_meta.bam
+	samtools sort -O bam -o $reconDir/${PATTERN}_meta_sorted.bam -T temp $reconDir/${PATTERN}_meta.bam
 done
 
 echo "Analyzing meta-assembly output..."
