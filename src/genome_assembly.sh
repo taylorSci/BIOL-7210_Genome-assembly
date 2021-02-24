@@ -1,4 +1,4 @@
-#!/bash/bin
+#!/usr/bin/env bash
 
 # TODO Finalize help message
 helpMessage="
@@ -123,14 +123,12 @@ echo "Assembling with ABySS..."
 
 
 echo "Assembling with SKESA..."
-#TAYLOR, I AM MAKING THE HARD LINK TO SKESA HIDDEN. PLEASE FEEL FREE TO CHANGE THIS IF IT SHOULD BE UNHIDDEN.
-ln $inputDir/$toolsDir/skesa/SKESA/skesa .run_skesa
-mkdir $outputDir/assemblies/skesa/
+mkdir $outputDir/assemblies/SKESA/
+mkdir $outputDir/assemblies/SKESA/extra
 skesa_in=($(ls $outputDir/read_QC/fastp))
-
 for i in "${skesa_in[@]}";
 do
-    ./.run_skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores -- memory $mem > $outputDir/assemblies/skesa/$i.skesa.fa
+    skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $c -- memory $m > $outputDir/assemblies/SKESA/${i}_SKESA.fasta
 done
 echo "Contigs generated for SKESA"
 
@@ -138,9 +136,6 @@ echo "Assembling with SPAdes..."
 
 # generate BAM files for post Assembly QC
 echo "Generating BAM files from ABySS, SKESA, and SPAdes contigs"
-# TAYLOR, I'VE IMPLEMENTED THE BAM FILE GENERATION FOR SPADES AND SKESA AND HAVE TESTED IT. I NEED TO TALK TO YOU ABOUT HOW TO DO THIS FOR ABYSS (DEADLY WHITESPACES LOL)
-# I'VE ALSO EDITED THE SCRIPT LAYOUT WORD DOC SLIGHTLY TO INCLUDE A "BAM_FILES" DIRECTORY IN OUTPUTS WHERE YOU CAN GRAB EVERYTHING FROM
-# ALSO, I'VE ADDED -C AND -M FLAGS FOR CORES AND MEMORY INPUTS
 mkdir temp
 cd temp
 mkdir $outputDir/bam_files
@@ -149,15 +144,38 @@ file_prefix=($(ls $outputDir/read_QC/fastp))
 
 for i in "${file_prefix[@]}";
 do
-    bwa index $outputDir/assemblies/skesa/${i}.skesa.fa
-    bwa mem $outputDir/assemblies/skesa/${i}.skesa.fa $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}.skesa.sam
-    samtools fixmate -O bam ./${i}.skesa.sam ./${i}.skesa.bam
-    samtools sort -O bam -o $outputDir/bam_files/${i}_sorted.skesa.bam -T temp ./${i}.skesa.sam
+    bwa index $outputDir/assemblies/SKESA/${i}_SKESA.fasta
+    bwa mem $outputDir/assemblies/SKESA/${i}_SKESA.fasta $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}_SKESA.sam
+    samtools fixmate -O bam ./${i}_SKESA.sam ./${i}_SKESA.bam
+    samtools sort -O bam -o $outputDir/bam_files/${i}_sorted.SKESA.bam -T temp ./${i}_SKESA.sam
+    mv $outputDir/assemblies/SKESA/*.amb $outputDir/assemblies/SKESA/extra
+    mv $outputDir/assemblies/SKESA/*.ann $outputDir/assemblies/SKESA/extra
+    mv $outputDir/assemblies/SKESA/*.bwt $outputDir/assemblies/SKESA/extra
+    mv $outputDir/assemblies/SKESA/*.pac $outputDir/assemblies/SKESA/extra
+    mv $outputDir/assemblies/SKESA/*.sa $outputDir/assemblies/SKESA/extra
 
     bwa index $outputDir/assemblies/SPAdes/contigs/${i}_SPAdes.fasta
     bwa mem $outputDir/assemblies/SPAdes/contigs/${i}_SPAdes.fasta $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}_SPAdes.sam
     samtools fixmate -O bam ./${i}_SPAdes.sam ./${i}_SPAdes.bam
     samtools sort -O bam -o $outputDir/bam_files/${i}_sorted.SPAdes.bam -T temp ./${i}_SPAdes.sam
+    mv $outputDir/assemblies/SPAdes/contigs/*.amb $outputDir/assemblies/SPAdes/extra
+    mv $outputDir/assemblies/SPAdes/contigs/*.ann $outputDir/assemblies/SPAdes/extra
+    mv $outputDir/assemblies/SPAdes/contigs/*.bwt $outputDir/assemblies/SPAdes/extra
+    mv $outputDir/assemblies/SPAdes/contigs/*.pac $outputDir/assemblies/SPAdes/extra
+    mv $outputDir/assemblies/SPAdes/contigs/*.sa $outputDir/assemblies/SPAdes/extra
+
+# NEED AEKANSH'S REAPR CONTIG FILE REPAIR CODE HERE
+
+    bwa index $outputDir/assemblies/ABySS/contigs_reapr/${i}_repaired_ABySS.fasta
+    bwa mem $outputDir/assemblies/ABySS/contigs_reapr/${i}_repaired_ABySS.fasta $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz > ./${i}_ABySS.sam
+    samtools fixmate -O bam ./${i}_ABySS.sam ./${i}_ABySS.bam
+    samtools sort -O bam -o $outputDir/bam_files/${i}_sorted.ABySS.bam -T temp ./${i}_ABySS.sam
+    mv $outputDir/assemblies/ABySS/contigs_reapr/*.amb $outputDir/assemblies/ABySS/extra
+    mv $outputDir/assemblies/ABySS/contigs_reapr/*.ann $outputDir/assemblies/ABySS/extra
+    mv $outputDir/assemblies/ABySS/contigs_reapr/*.bwt $outputDir/assemblies/ABySS/extra
+    mv $outputDir/assemblies/ABySS/contigs_reapr/*.pac $outputDir/assemblies/ABySS/extra
+    mv $outputDir/assemblies/ABySS/contigs_reapr/*.sa $outputDir/assemblies/ABySS/extra
+
 done
 cd ..
 rm -r temp
