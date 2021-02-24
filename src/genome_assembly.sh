@@ -94,7 +94,7 @@ then
 	fi
 fi
 
-#Install tools
+# Install tools
 if $install_
 then
 	if ! (type git && type conda) &> /dev/null
@@ -117,6 +117,7 @@ then
 	echo "Installing SKESA..."
 
 	echo "Installing SPAdes..."
+	conda install -c bioconda spades
 
 	echo "Installing REAPR..."
 
@@ -135,17 +136,31 @@ then
 	fi
 fi
 
-isolates=$(ls $inputDir | grep -o -E "CGT[0-9]{4}")
-ABySSBams=$outputDir/abyss/abyss_output/bwa_mem_corrected/\${PATTERN}_sorted.bam
-ABySSContigs=$outputDir/abyss/abyss_output/corrected_fasta/abyss_\$PATTERN.fa
-ABySSReapr=$outputDir/REAPR/QA_ABYSS/\${PATTERN}_QA/05.summary.report.txt
-SKESABams=$outputDir/skesa/bam_mem/\${PATTERN}_sorted_mem.bam
-SKESAContigs=$outputDir/skesa/skesa_outputs/\$PATTERN.skesa_contig.fa
-SKESAReapr=$outputDir/REAPR/QA_SKESA/\${PATTERN}_QA/05.summary.report.txt
-SPAdesBams=$outputDir/SPAdes/SPAdes_bam_mem/\${PATTERN}_sorted.bam
-SPAdesContigs=$outputDir/SPAdes/SPAdes_Output/\$PATTERN/contigs.fasta
-SPAdesReapr=$outputDir/REAPR/QA_SPAdes/\${PATTERN}_QA/05.summary.report.txt
+fastpDir=$outputDir/read_QC/fastp
+isolates=$(ls $fastpDir)
+bamPath=$outputDir/bam_files/\${PATTERN}_sorted.\$assembly.bam
+contigPath=$outputDir/assemblies/\$assembly/contigs/\${PATTERN}_\$assembly.fasta
+qaPath=$outputDir/REAPR/QA_\$assembly/\${PATTERN}_QA/05.summary.report.txt
 reconDir=$outputDir/assembly-reconciliation
+
+ABySSDir=$outputDir/assemblies/ABySS
+SKESADir=$outputDir/assemblies/SKESA
+SPAdesDir=$outputDir/assemblies/SPAdes
+
+ABySSContigs=$ABySSDir/contigs/\${PATTERN}_ABySS.fasta
+SKESAContigs=$SKESADir/contigs/\${PATTERN}_SKESA.fasta
+SPAdesContigs=$SPAdesDir/contigs/\${PATTERN}_SPAdes.fasta
+
+####
+ABySSReapr=$outputDir/REAPR/QA_ABYSS/\${PATTERN}_QA/05.summary.report.txt
+SKESAReapr=$outputDir/REAPR/QA_SKESA/\${PATTERN}_QA/05.summary.report.txt
+SPAdesReapr=$outputDir/REAPR/QA_SPAdes/\${PATTERN}_QA/05.summary.report.txt
+
+ABySSBams=$bamDir/\${PATTERN}_sorted.ABySS.bam
+SKESABams=$bamDir/\${PATTERN}_sorted.SKESA.bam
+SPAdesBams=$bamDir/\${PATTERN}_sorted.SPAdes.bam
+####
+
 
 # Preprocess reads
 echo "Analyzing and trimming reads..."
@@ -153,12 +168,27 @@ echo "Analyzing and trimming reads..."
 
 # Assemble genomes & generating sequence alignment maps
 echo "Assembling with ABySS..."
+mkdir -p $ABySSDir/contigs
+mkdir -p $ABySSDir/extra
 
+for i in $isolates;
+do 
+  abyss-pe k=70 in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
+  ln $ABySSDir/extra/$i/${i}-contigs.fa $ABySSDir/contigs/${i}_ABySS.fasta
+done
 
 echo "Assembling with SKESA..."
 
 
 echo "Assembling with SPAdes..."
+mkdir -p $SPAdesDir/contigs
+mkdir -p $SPAdesDir/extra
+
+for i in $isolates;
+do 
+  spades.py -1 $fastpDir/$i/${i}_1_fp.fq.gz -2 $fastpDir/$i/${i}_2_fp.fq.gz -o $SPAdesDir/extra/$i -t 4
+  ln $SPAdesDir/extra/$i/contigs.fasta $SPAdesDir/contigs/${i}_SPAdes.fasta
+done
 
 # Assembly QC with REAPR
 for assembler in assemblers
@@ -206,15 +236,15 @@ do
 	for assembler in ABySS SKESA SPAdes
 	do
 		# Index BAMs, make BAM list files
-		eval "samtools index $(eval "echo \$${assembler}Bams")"
-		eval "echo $(eval "echo \$${assembler}Bams")" > $reconDir/${assembler}_$PATTERN.bamlist
+		eval "samtools index $(echo $bamPath)"
+		eval "echo $(echo $bamPath)" > $reconDir/${assembler}_$PATTERN.bamlist
 		echo "200 800" >> $reconDir/${assembler}_$PATTERN.bamlist
 		#eval "ln $(eval "echo \$${assembler}Contigs") $recondir/${assembler}_$PATTERN"
 
 		# Extract quality metrics
-		declare ${assembler}NumErrs=$(eval "grep -E '[0-9]+ errors:' $(eval "echo \$${assembler}Reapr") | grep -E -o '[0-9]+'")
-		declare ${assembler}NumWarns=$(eval "grep -E '[0-9]+ warnings:' $(eval "echo \$${assembler}Reapr") | grep -E -o '[0-9]+'")
-		declare ${assembler}N50=$(eval "grep -E 'N50' $(eval "echo \$${assembler}Reapr") | head -n1 | sed -E 's/N50 = ([0-9]+).*/\1/'")
+		declare ${assembler}NumErrs=$(eval "grep -E '[0-9]+ errors:' $(echo $qaPath) | grep -E -o '[0-9]+'")
+		declare ${assembler}NumWarns=$(eval "grep -E '[0-9]+ warnings:' $(echo $qaPath) | grep -E -o '[0-9]+'")
+		declare ${assembler}N50=$(eval "grep -E 'N50' $(eval echo $qaPath) | head -n1 | sed -E 's/N50 = ([0-9]+).*/\1/'")
 	done
 
 	# Determine assembly order
@@ -266,7 +296,7 @@ do
 
 	# Prep partially merged assembly
 	bwa index $tmpDir/intermediate.gam.fasta
-	bwa mem $tmpDir/intermediate.gam.fasta $inputDir/$PATTERN/${PATTERN}_1.fq.gz $inputDir/$PATTERN/${PATTERN}_2.fq.gz > $tmpDir/intermediate.sam
+	bwa mem $tmpDir/intermediate.gam.fasta $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $fastpDir/$PATTERN/${PATTERN}_2.fq.gz > $tmpDir/intermediate.sam
 	samtools fixmate -O bam $tmpDir/intermediate.sam $tmpDir/intermediate.bam
 	samtools sort -O bam -o $tmpDir/intermediate_sorted.bam -T temp $tmpDir/intermediate.bam
 	samtools index $tmpDir/intermediate_sorted.bam
@@ -280,7 +310,7 @@ do
 
 	# Align BAMs for meta-QC
 	bwa index $reconDir/${PATTERN}_meta.gam.fasta
-	bwa mem $reconDir/${PATTERN}_meta.gam.fasta $inputDir/$PATTERN/${PATTERN}_1.fq.gz $inputDir/$PATTERN/${PATTERN}_2.fq.gz > $reconDir/${PATTERN}_meta.sam
+	bwa mem $reconDir/${PATTERN}_meta.gam.fasta $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $inputDir/$PATTERN/${PATTERN}_2_fp.fq.gz > $reconDir/${PATTERN}_meta.sam
 	samtools fixmate -O bam $reconDir/${PATTERN}_meta.sam $reconDir/${PATTERN}_meta.bam
 	samtools sort -O bam -o $reconDir/${PATTERN}_meta_sorted.bam -T temp $reconDir/${PATTERN}_meta.bam
 done
