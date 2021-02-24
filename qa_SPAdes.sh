@@ -8,7 +8,7 @@ ls $outputDir/bam_files/*_SPAdes.bam > $outputDir/QA_SPAdes/bam.txt
 cd $outputDir/bam_files
 ls *_SPAdes.bam > $outputDir/QA_SPAdes/temp.txt
 cd $outputDir/QA_SPAdes/
-cat temp.txt | tr -d "_sorted.SPAdes.bam" > output.txt
+cat temp.txt | tr -d "_SPAdes.bam" > output.txt
 rm temp.txt
 
 cat contigs.txt | while read line

@@ -8,7 +8,7 @@ ls $outputDir/bam_files/*_SKESA.bam > $outputDir/QA_SKESA/bam.txt
 cd $outputDir/bam_files
 ls *_SKESA.bam > $outputDir/QA_SKESA/temp.txt
 cd $outputDir/QA_SKESA/
-cat temp.txt | tr -d "_sorted.SKESA.bam" > output.txt
+cat temp.txt | tr -d "_SKESA.bam" > output.txt
 rm temp.txt
 
 cat contigs.txt | while read line

@@ -7,7 +7,7 @@ ls $outputDir/bam_files/*_ABySS.bam > $outputDir/QA_ABySS/bam.txt
 cd $outputDir/bam_files
 ls *_ABySS.bam > $outputDir/QA_ABySS/temp.txt
 cd $outputDir/QA_ABYSS/
-cat temp.txt | tr -d "_sorted.ABySS.bam" > output.txt
+cat temp.txt | tr -d "ABySS.bam" > output.txt
 rm temp.txt
 
 cat contigs.txt | while read line
