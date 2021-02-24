@@ -26,7 +26,6 @@ TOOLS INSTALLED/INVOKED:
 		SPAdes
 	Assembly quality control:
 		REAPR
-		dnAQET
 	Assembly reconciliation:
 		GAM-NGS
 
@@ -104,8 +103,14 @@ if $install_
 	echo "Installing SPAdes..."
 
 	echo "Installing REAPR..."
-
-	echo "Installing dnAQET..."
+	cd $toolsDir
+	mkdir REAPR
+	cd REAPR
+	wget ftp://ftp.sanger.ac.uk/pub/resources/software/reapr/Reapr_1.0.18.tar.gz
+	tar -xzf Reapr_1.0.18.tar.gz -C $toolsDir/REAPR
+	./configure
+	make
+	make install
 
 	if ! (type gam-create && type gam-merge) &> /dev/null
 	then
@@ -139,12 +144,71 @@ echo "Assembling with SKESA..."
 
 echo "Assembling with SPAdes..."
 
+# Post Assembly QC
+echo "Analyzing SKESA Output..."
+mkdir $outputDir/QA_SKESA
+ls $outputDir/assemblies/SKESA/*.fasta > $outputDir/QA_SKESA/contigs.txt
+ls $outputDir/bam_files/*_SKESA.bam > $outputDir/QA_SKESA/bam.txt
+cd $outputDir/bam_files
+ls *_SKESA.bam > $outputDir/QA_SKESA/temp.txt
+cd $outputDir/QA_SKESA/
+cat temp.txt | tr -d "_sorted.SKESA.bam" > output.txt
+rm temp.txt
 
-# Reconcile assemblies
-for assembler in assemblers
-do
-	echo "Analyzing $assembler output..."
+cat contigs.txt | while read line
+do reapr facheck $line
+done
 
+paste -d, contigs.txt bam.txt output.txt > temp.csv
+cat temp.csv | tr "," " " > contig_bam_output.csv
+rm temp.csv
+
+cat contig_bam_output.csv | while read line
+do reapr pipeline $line
+done
+
+echo "Analyzing SPAdes Output..."
+mkdir $outputDir/QA_SPAdes
+ls $outputDir/assemblies/SPAdes/contigs/*.fasta > $outputDir/QA_SPAdes/contigs.txt
+ls $outputDir/bam_files/*_SPAdes.bam > $outputDir/QA_SPAdes/bam.txt
+cd $outputDir/bam_files
+ls *_SPAdes.bam > $outputDir/QA_SPAdes/temp.txt
+cd $outputDir/QA_SPAdes/
+cat temp.txt | tr -d "_sorted.SPAdes.bam" > output.txt
+rm temp.txt
+
+cat contigs.txt | while read line
+do reapr facheck $line
+done
+
+paste -d, contigs.txt bam.txt output.txt > temp.csv
+cat temp.csv | tr "," " " > contig_bam_output.csv
+rm temp.csv
+
+cat contig_bam_output.csv | while read line
+do reapr pipeline $line
+done
+
+echo "Analyzing ABYSS Output..."
+mkdir $outputDir/QA_ABySS
+ls $outputDir/assemblies/ABySS/contigs_reapr/*_repaired_ABySS.fasta > $outputDir/QA_ABySS/contigs.txt
+ls $outputDir/bam_files/*_ABySS.bam > $outputDir/QA_ABySS/bam.txt
+cd $outputDir/bam_files
+ls *_ABySS.bam > $outputDir/QA_ABySS/temp.txt
+cd $outputDir/QA_ABYSS/
+cat temp.txt | tr -d "_sorted.ABySS.bam" > output.txt
+rm temp.txt
+
+cat contigs.txt | while read line
+do reapr facheck $line
+done
+
+paste -d, contigs.txt bam.txt output.txt > temp.csv
+cat temp.csv | tr "," " " > contig_bam_output.csv
+rm temp.csv
+
+cat contig_bam_output.csv | while read line
+do reapr pipeline $line
 done
 
 echo "Reconciling assemblies..."
