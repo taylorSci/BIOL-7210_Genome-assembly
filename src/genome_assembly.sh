@@ -105,7 +105,17 @@ echo "Analyzing and trimming reads..."
 
 # Assemble genomes
 echo "Assembling with ABySS..."
+mkdir $outputDir/assemblies/ABySS
+mkdir $outputDir/assemblies/ABySS/contigs
+mkdir $outputDir/assemblies/ABySS/extra
 
+files=($(ls $outputDir/read_QC/fastp/))
+
+for i in "${files[@]}";
+do 
+  abyss-pe k=70 in='$outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz $outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz' name=$outputDir/assemblies/ABySS/extra/$i
+  cp $outputDir/assemblies/ABySS/extra/$i/${i}-contigs.fa $outputDir/assemblies/ABySS/contigs/${i}_ABySS.fasta
+done
 
 echo "Assembling with SKESA..."
 
