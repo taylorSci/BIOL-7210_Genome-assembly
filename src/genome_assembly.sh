@@ -35,6 +35,9 @@ OPTIONS
 	-o 	<OUTPUT_FOLDER> 					(defaults to sibling ('../output') of input reads directory)
 	-t 	<TOOLS_FOLDER>	 					directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
 	-p 										do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
+	-M	<cut_mean_quality	28	fastp: the mean quality requirement option shared by cut_front, cut_tail or cut_sliding. Range: 1~36
+	-e	<average_qual>		28	fastp: if one read's average quality score <avg_qual, then this read/pair is discarded. 0 means no requirement
+	-W	<cut_window_size>	20	fastp: the window size option shared by cut_front, cut_tail or cut_sliding. Range: 1~1000
 	-b 	<MIN_BLOCK_SIZE>			10		GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
 	-c 	<BLOCK_COVERAGE_THRESHOLD> 	0.75	GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
 	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
@@ -46,19 +49,25 @@ install_=false
 outputDir=""
 toolsDir=""
 pathFlag=false
+cut_mean_quality=28
+average_qual=28
+cut_window_size=20
 Bmin=10
 Tc=0.75
 cores=6
 mem=10
-while getopts "hio:t:pb:c:m:n:" option
+while getopts "hio:t:pM:e:W:b:c:m:n:" option
 do
 	case $option in
 		h) 	echo $helpMessage
 			exit;;
 		i) 	install_=true;;
-		o) 	outputDir=$OPTARG;;
-		t) 	toolsDir=$OPTARG;;
+		o) 	outputDir=$(realpath $OPTARG);;
+		t) 	toolsDir=$(realpath $OPTARG);;
 		p) 	pathFlag=true;;
+		M)	cut_mean_quality=$OPTARG;;
+		e)	average_qual=$OPTARG;;
+		W)	cut_window_size=$OPTARG;;
 		b) 	Bmin=$OPTARG;;
 		c) 	Tc=$OPTARG;;
 		n) 	cores=$OPTARG;;
@@ -69,7 +78,7 @@ do
 done
 
 # Parse positional arguments
-inputDir=${@:$OPTIND:1}
+inputDir=$(realpath ${@:$OPTIND:1})
 
 # Make required directories
 if [ -z $outputDir ]
@@ -111,16 +120,16 @@ then
 
 	# TODO Add dependencies for all tools here
 	echo "Installing required dependencies..."
-	for dependency in gxx_linux_64 cmake zlib boost google-sparsehash bwa samtools
+	for dependency in gxx_linux-64 cmake zlib boost google-sparsehash bwa samtools
 	do
 		conda install $dependency
 	done
 
-	echo "Installing FastQC..."
+	echo "Installing fastp..."
 	conda install -c bioconda fastp
 	
 	echo 'Installing multiqc...'
-	conda install -c bioconda -c conda-forge multiqc
+	conda install -c bioconda multiqc
 
 	# Install ABySS and its dependencies
 	echo "Installing ABySS..."
@@ -144,7 +153,7 @@ then
 		./configure
 		make
 		make install
-		ln $toolsDir/REAPR/src/reapr.pl $toolsDir/reapr
+		ln -s $toolsDir/REAPR/src/reapr.pl $toolsDir/reapr
 	fi
 
 	if ! (type gam-create && type gam-merge) &> /dev/null
@@ -160,7 +169,7 @@ then
 	fi
 fi
 
-isolates=$(ls $fastpDir)
+isolates=$(ls $inputDir)
 assemblies="ABySS SKESA SPAdes"
 
 fastpDir=$outputDir/read_QC/fastp
@@ -179,18 +188,14 @@ SPAdesContigs=$SPAdesDir/contigs/\${PATTERN}_SPAdes.fasta
 
 # Preprocess reads
 echo "Analyzing and trimming reads..."
-mkdir $outputDir/fastp
-cd $inputDir
-for dir in *
+mkdir -p $fastpDir
+for i in $isolates
 do
-	mkdir ${outputDir}/fastp/${dir}_fp
-	cd $(dirname $inputDir)
-	fastp -i $inputDir/${dir}/${dir}_1.fq.gz -I $inputDir/${dir}/${dir}_2.fq.gz -o ${dir}_1_fp.fq.gz -O ${dir}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M 28 -W 20 -e 28 -c
-	mv *fp* $outputDir/fastp/${dir}_fp
-	mv fastp* $outputDir/fastp/${dir}_fp
-	cd $inputDir
+	mkdir -p $fastpDir/$i
+	cd $fastpDir/$i
+	fastp -i $inputDir/$i/${i}_1.fq.gz -I $inputDir/$i/${i}_2.fq.gz -o ${i}_1_fp.fq.gz -O ${i}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M $cut_mean_quality -W $cut_window_size -e $average_qual -c
 done
-cd ${outputDir}/fastp
+cd $fastpDir
 multiqc .
 
 # Assemble genomes & generating sequence alignment maps
