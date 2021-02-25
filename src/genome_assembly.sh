@@ -140,7 +140,7 @@ then
 		./configure
 		make
 		make install
-		ln $toolsDir/REAPR/src/reapr.pl $toolsDir reapr
+		ln $toolsDir/REAPR/src/reapr.pl $toolsDir/reapr
 	fi
 
 	if ! (type gam-create && type gam-merge) &> /dev/null
