@@ -130,8 +130,18 @@ then
 	conda install -c bioconda spades
 
 	echo "Installing REAPR..."
-
-	echo "Installing dnAQET..."
+	if ! type reapr &> /dev/null
+	then
+		cd $toolsDir
+		mkdir REAPR
+		cd REAPR
+		wget ftp://ftp.sanger.ac.uk/pub/resources/software/reapr/Reapr_1.0.18.tar.gz
+		tar -xzf Reapr_1.0.18.tar.gz -C $toolsDir/REAPR
+		./configure
+		make
+		make install
+		ln $toolsDir/REAPR/src/reapr.pl $toolsDir reapr
+	fi
 
 	if ! (type gam-create && type gam-merge) &> /dev/null
 	then
@@ -152,7 +162,7 @@ assemblies="ABySS SKESA SPAdes"
 fastpDir=$outputDir/read_QC/fastp
 contigPath=$outputDir/assemblies/\$assembly/contigs/\${PATTERN}_$assembly.fasta
 bamPath=$outputDir/bam_files/\${PATTERN}_sorted.\$assembly.bam
-qaPath=$outputDir/REAPR/QA_\$assembly/\${PATTERN}_QA/05.summary.report.txt
+qaPath=$outputDir/REAPR/unreconciled/QA_\$assembly/\${PATTERN}_QA/05.summary.report.txt
 reconDir=$outputDir/assembly-reconciliation
 
 ABySSDir=$outputDir/assemblies/ABySS
@@ -175,7 +185,8 @@ mkdir -p $ABySSDir/extra
 for i in $isolates;
 do 
 	abyss-pe k=70 in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
-	ln $ABySSDir/extra/$i/${i}-contigs.fa $ABySSDir/contigs/${i}_ABySS.fasta
+	# Repair contig names to something REAPR likes
+	reapr facheck $ABySSDir/extra/$PATTERN/${PATTERN}-contigs.fa $ABySSDir/contigs/${PATTERN}_ABySS.fasta
 done
 
 echo "Assembling with SKESA..."
@@ -198,30 +209,24 @@ do
 	ln $SPAdesDir/extra/$i/contigs.fasta $SPAdesDir/contigs/${i}_SPAdes.fasta
 done
 
-# TODO NEED AEKANSH'S REAPR CONTIG FILE REPAIR CODE HERE
-# Reformat names of ABySS contigs
-
-# generate BAM files for post-assembly QC
-echo "Generating BAM files from ABySS, SKESA, & SPAdes contigs"
+# Post-assembly QC
+echo "Analyzing $assembler output..."
 
 for PATTERN in $isolates;
 do
 	for assembly in $assemblies
 	do
+		# Generate and index BAM files
 		eval "bwa index $(echo $contigPath)"
 		eval "bwa mem $(echo "$contigPath") $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $fastpDir/$PATTERN/${PATTERN}_2.fq.gz" > $outputDir/bam_files/${PATTERN}.$assembly.sam
 		samtools fixmate -O bam $outputDir/bam_files/$PATTERN.$assembly.sam $outputDir/bam_files/$PATTERN.$assembly.bam
 		eval "samtools sort -O bam -o $(echo $bamPath) -T temp $outputDir/bam_files/$PATTERN.$assembly.bam"
 		eval "samtools index $(echo $bamPath)"
+
+		# REAPR QA
+		eval "reapr pipeline $(echo $contigPath $bamPath $(dirname $qaPath))"
 	done
 
-done
-
-# Assembly QC with REAPR
-for assembly in $assemblies
-do
-	echo "Analyzing $assembler output..."
-	
 done
 
 # Reconcile assemblies
@@ -316,10 +321,12 @@ do
 	fi
 
 	# Merge first two
+	echo "$PATTERN: Performing initial merge..."
 	gam-create --master-bam $reconDir/${first}_$PATTERN.bamlist --slave-bam $reconDir/${second}_$PATTERN.bamlist --min-block-size $Bmin --output $tmpDir/intermediate
 	eval "gam-merge $(eval "echo --master-bam $reconDir/${first}_$PATTERN.bamlist --slave-bam $reconDir/${second}_$PATTERN.bamlist --blocks-file $tmpDir/intermediate.blocks --master-fasta \$${first}Contigs --slave-fasta \$${second}Contigs --output $tmpDir/intermediate")"
 
 	# Prep partially merged assembly
+	echo "$PATTERN: Prepping second merge..."
 	bwa index $tmpDir/intermediate.gam.fasta
 	bwa mem $tmpDir/intermediate.gam.fasta $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $fastpDir/$PATTERN/${PATTERN}_2.fq.gz > $tmpDir/intermediate.sam
 	samtools fixmate -O bam $tmpDir/intermediate.sam $tmpDir/intermediate.bam
@@ -329,17 +336,20 @@ do
 	echo "200 800" >> $tmpDir/intermediate.bamlist
 
 	#Complete merging
+	echo "$PATTERN: Performing second merge..."
 	gam-create --master-bam $tmpDir/intermediate.bamlist --slave-bam $reconDir/${third}_$PATTERN.bamlist --min-block-size $Bmin --output $tmpDir/intermediate
 	eval "gam-merge $(eval "echo --master-bam $tmpDir/intermediate.bamlist --slave-bam $reconDir/${third}_$PATTERN.bamlist --blocks-file $tmpDir/intermediate.blocks --master-fasta $tmpDir/intermediate.gam.fasta --slave-fasta \$${third}Contigs --output $reconDir/${PATTERN}_meta")"
 	echo -e "$PATTERN\t$first:$second:$third" >> $reconDir/merging-order.txt
 
+	echo "Analyzing meta-assembly output..."
 	# Align BAMs for meta-QC
 	bwa index $reconDir/${PATTERN}_meta.gam.fasta
 	bwa mem $reconDir/${PATTERN}_meta.gam.fasta $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $inputDir/$PATTERN/${PATTERN}_2_fp.fq.gz > $reconDir/${PATTERN}_meta.sam
 	samtools fixmate -O bam $reconDir/${PATTERN}_meta.sam $reconDir/${PATTERN}_meta.bam
 	samtools sort -O bam -o $reconDir/${PATTERN}_meta_sorted.bam -T temp $reconDir/${PATTERN}_meta.bam
+
+	# QC of meta-assembly
+	reapr pipeline $reconDir/${PATTERN}_meta.bam $reconDir/${PATTERN}_meta.gam.fasta $outputDir/REAPR/reconciled/$PATTERN
 done
 
-echo "Analyzing meta-assembly output..."
-
-# TODO Provide folder with clearn output
+# TODO Provide folder with clean output
