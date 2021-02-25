@@ -117,6 +117,10 @@ then
 	done
 
 	echo "Installing FastQC..."
+	conda install -c bioconda fastp
+	
+	echo 'Installing multiqc...'
+	conda install -c bioconda -c conda-forge multiqc
 
 	# Install ABySS and its dependencies
 	echo "Installing ABySS..."
@@ -175,7 +179,19 @@ SPAdesContigs=$SPAdesDir/contigs/\${PATTERN}_SPAdes.fasta
 
 # Preprocess reads
 echo "Analyzing and trimming reads..."
-
+mkdir $outputDir/fastp
+cd $inputDir
+for dir in *
+do
+	mkdir ${outputDir}/fastp/${dir}_fp
+	cd $(dirname $inputDir)
+	fastp -i $inputDir/${dir}/${dir}_1.fq.gz -I $inputDir/${dir}/${dir}_2.fq.gz -o ${dir}_1_fp.fq.gz -O ${dir}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M 28 -W 20 -e 28 -c
+	mv *fp* $outputDir/fastp/${dir}_fp
+	mv fastp* $outputDir/fastp/${dir}_fp
+	cd $inputDir
+done
+cd ${outputDir}/fastp
+multiqc .
 
 # Assemble genomes & generating sequence alignment maps
 echo "Assembling with ABySS..."
