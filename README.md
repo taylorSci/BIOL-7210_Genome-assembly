@@ -2,11 +2,11 @@
 
 Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline. TO call the pipeline, run genome_assembly.sh
 
-PREREQUISITES:
+###### PREREQUISITES:
 -	git
 -	conda
 
-OPTIONS
+###### OPTIONS
 - 	-h display help
 - 	-i install pipeline
 - 	-o 	<OUTPUT_FOLDER> (defaults to sibling ('../output') of input reads directory)
@@ -20,7 +20,7 @@ OPTIONS
 - 	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
 - 	-m	[MEMORY] 					10		Amount of memory to allocate to the pipeline (GB)
 
-TOOLS INSTALLED/INVOKED:  
+###### TOOLS INSTALLED/INVOKED:  
 Read quality:  
 - FastQC  
 Genome assembly:  
