@@ -9,13 +9,16 @@ PREREQUISITES:
 TOOLS INSTALLED/INVOKED:
 Read quality:
 - FastQC
-	Genome assembly:
+
+Genome assembly:
 - ABySS
 - SKESA
 - SPAdes
+
 Assembly quality control:
 - REAPR
 - dnAQET
+
 Assembly reconciliation:
 - GAM-NGS
 
