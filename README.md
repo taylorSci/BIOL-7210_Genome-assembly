@@ -80,7 +80,4 @@ skesa --reads CGTxxxx_1.fq.gz,CGTxxxx_2.fq.gz --cores <cores> --memory <memory> 
 - the --cores flag allows the user to assign the number of cores to give to the assembler
 - the --memory flag allows the user to assign the amount of memory (in gb) to give to the assembler
 
-## Part 3: Post Assembly QC and Meta-Assembly
-
-
-
+## Part 3: Post Assembly QC and Meta-Assembly  
