@@ -1,6 +1,8 @@
 # Team 1 Genome Assembly
+#### MEMBERS:
+Anneke Augenbroe, Aekansh Goel, Taylor Hoyt, Hyojung Kim, Sai Kollapaneni, and Nikesh Kumar
 
-Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline.  
+This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline.  
 
 **```genone_assebmly.sh```**  
 DESCRIPTION
@@ -81,3 +83,23 @@ skesa --reads CGTxxxx_1.fq.gz,CGTxxxx_2.fq.gz --cores <cores> --memory <memory> 
 - the --memory flag allows the user to assign the amount of memory (in gb) to give to the assembler
 
 ## Part 3: Post Assembly QC and Meta-Assembly
+
+### POST-ASSEMBLY QUALITY ASSESSMENT
+#### DESCRIPTION:
+REAPR is a tool that evaluates the accuracy of a genome assembly using mapped paired end reads, without the use of a reference genome for comparison. It can be used in any stage of an assembly pipeline to automatically break incorrect scaffolds and flag other errors in an assembly for manual inspection. It reports mis-assemblies and other warnings, and produces a new broken assembly based on the error calls.
+The software requires as input an assembly in FASTA format and paired reads mapped to the assembly in a BAM file. Mapping information such as the fragment coverage and insert size distribution is analysed to locate mis-assemblies.
+#### USAGE:
+Initial Check:
+```
+reapr facheck <assembly>.fa
+```
+If it returns errors, then: 
+```
+reapr facheck <assembly>.fa <new_assembly.fa> 
+```
+Finally QC Check:
+```
+reapr pipeline <assembly>.fa <mapped>.bam [outdir]
+```
+#### PREREQUISITES:
+	R
