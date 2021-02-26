@@ -27,9 +27,30 @@ Options used:
 SKESA, SPAdes and ABySS are *de novo* assemlers which employ the de bruijn graph method of assembling reads into contigs. This method involves breaking the reads into small fragments of size k, known as k-mers, and then traversing the Eulerian path through the k-mers to goin reads into larger contigs. SPAdes and SKESA automatucally determine and optimize whcih k-mers to use to assemble the genomes. ABySS requires input of a sinlge k-mer size which we optimized to 21 using k-mer optimizartion software, KmerGenie. Below are the usage cases for the three assemblers:
 ```
 abyss-pe k=21 name=CGTxxxx in=‘CGTxxxx_1.fq.gz CGTxxxx_2.fq.gz’
+```
+###### ABySS:
+- the k option designates the k-mer size to use for the assembly
+- the name option indicates the name prefix desired for the output file
+- the in option takes the pair end reads separated by a whitespace
+```
 spades.py --careful –1 <CGTxxx_1.fq.gz> -2 <CGTxxx_2.fq.gz> -o <output directory> -t <# of cores> -k <k-mer sizes>
+```
+
+###### SPAdes:
+- the -careful option works to reduce the number of mismatches and indels 
+- -1 and -2 options should be followed by the 1st and second fair end reads files respectively
+- the -o option takes the name of the output file
+- the -t option allows the user to assign the number of cores the assembler will use
+- the -k flag allows the uder to input a list of specific k-mer sizes
+
+```
 skesa --reads CGTxxxx_1.fq.gz,CGTxxxx_2.fq.gz --cores <cores> --memory <memory> > CGTxxxx_SKESA.fasta
 ```
+###### SKESA:
+- the --reads flag takes the paired end reads joined by ','
+- the --cores flag allows the user to assign the number of cores to give to the assembler
+- the --memory flag allows the user to assign the amount of memory (in gb) to give to the assembler
+
 ## Part 3: Post Assembly QC and Meta-Assembly
 
 DESCRIPTION
