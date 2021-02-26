@@ -8,16 +8,16 @@ PREREQUISITES:
 
 TOOLS INSTALLED/INVOKED:
 Read quality:
--FastQC
+- FastQC
 	Genome assembly:
--ABySS
--SKESA
--SPAdes
+- ABySS
+- SKESA
+- SPAdes
 Assembly quality control:
--REAPR
--dnAQET
+- REAPR
+- dnAQET
 Assembly reconciliation:
--GAM-NGS
+- GAM-NGS
 
 OPTIONS
 - 	-h display help
