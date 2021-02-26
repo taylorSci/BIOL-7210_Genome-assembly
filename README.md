@@ -1,7 +1,13 @@
 # Team 1 Genome Assembly
 
-Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline. TO call the pipeline, run genome_assembly.sh
+Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline.  
 
+**```genone_assebmly.sh```**  
+DESCRIPTION
+A script to install and run a pipeline which assembles sets of paired-end reads in FASTQ format into  genome assemblies with multiple tools.
+Script can be run with or without tool installation option (for pipeline reuse).
+Preprocesses input reads, provides assembly quality metrics, and attempts to reconcile assemblies into meta-assemblies.
+Developed on Illumina bridge amplification dye sequencing data.  
 ##### PREREQUISITES:
 -	git
 -	conda
@@ -76,10 +82,5 @@ skesa --reads CGTxxxx_1.fq.gz,CGTxxxx_2.fq.gz --cores <cores> --memory <memory> 
 
 ## Part 3: Post Assembly QC and Meta-Assembly
 
-DESCRIPTION
-A script to install and run a pipeline which assembles sets of paired-end reads in FASTQ format into  genome assemblies with multiple tools.
-Script can be run with or without tool installation option (for pipeline reuse).
-Preprocesses input reads, provides assembly quality metrics, and attempts to reconcile assemblies into meta-assemblies.
-Developed on Illumina bridge amplification dye sequencing data.
 
 
