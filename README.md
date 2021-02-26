@@ -6,22 +6,6 @@ PREREQUISITES:
 -	git
 -	conda
 
-TOOLS INSTALLED/INVOKED:
-Read quality:
-- FastQC
-
-Genome assembly:
-- ABySS
-- SKESA
-- SPAdes
-
-Assembly quality control:
-- REAPR
-- dnAQET
-
-Assembly reconciliation:
-- GAM-NGS
-
 OPTIONS
 - 	-h display help
 - 	-i install pipeline
@@ -36,6 +20,18 @@ OPTIONS
 - 	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
 - 	-m	[MEMORY] 					10		Amount of memory to allocate to the pipeline (GB)
 
+TOOLS INSTALLED/INVOKED:  
+Read quality:  
+- FastQC  
+Genome assembly:  
+- ABySS
+- SKESA
+- SPAdes
+Assembly quality control:  
+- REAPR
+- dnAQET  
+Assembly reconciliation:  
+- GAM-NGS  
 ## Part 1: Pre-assembly QC using fastp and consolidation of all analysis filed using multiqc.
 	
 Fastp is an all-in-one trimming and filtering tool for raw fastq files. Outputs are quality controlled reads denoted by <isolatename>_fp_1.fq.gz and <isolatename>_fp_2.fq.gz, and fastp.html and fastp.json files used for visualization of filter results.
