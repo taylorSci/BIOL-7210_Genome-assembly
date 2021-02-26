@@ -8,17 +8,19 @@ Fastp is an all-in-one trimming and filtering tool for raw fastq files. Outputs 
 
 
 The fastp command used was as
-`fastp -i *_1.fq.gz -I *_2.fq.gz -o ${dir}_1_fp.fq.gz -O ${dir}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M 28 -W 20 -e 28 -c`
+```
+fastp -i *_1.fq.gz -I *_2.fq.gz -o ${dir}_1_fp.fq.gz -O ${dir}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M 28 -W 20 -e 28 -c
+```
 
 Options used:
--i, -I, -o, -O indicate input and output file names for both reads, 
--f 5;	trim of the first 5 bases for both reads
--t 5;	trim of the last 5 bases for both reads
--5 -3;	cut front and cut tail sliding windows will be used
--M 28;	the mean quality cutoff for the sliding window (phred score >= 28)
--W 20;	number of bases in sliding window
--e 28;	get rid of any reads that have an everage quality score below 28
--c;	base correction
+- -i, -I, -o, -O indicate input and output file names for both reads, 
+- -f 5;	trim of the first 5 bases for both reads
+- -t 5;	trim of the last 5 bases for both reads
+- -5 -3;	cut front and cut tail sliding windows will be used
+- -M 28;	the mean quality cutoff for the sliding window (phred score >= 28)
+- -W 20;	number of bases in sliding window
+- -e 28;	get rid of any reads that have an everage quality score below 28
+- -c;	base correction
 
 
 ## Part2: De-novo assembly using SKESA, ABySS, and SPAdes assemblers
