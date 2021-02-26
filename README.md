@@ -26,7 +26,7 @@ Read quality:
 Genome assembly:  
 - ABySS
 - SKESA
-- SPAdes
+- SPAdes  
 Assembly quality control:  
 - REAPR
 - dnAQET  
