@@ -2,11 +2,11 @@
 
 Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline. TO call the pipeline, run genome_assembly.sh
 
-###### PREREQUISITES:
+##### PREREQUISITES:
 -	git
 -	conda
 
-###### OPTIONS
+##### OPTIONS
 - 	-h display help
 - 	-i install pipeline
 - 	-o 	<OUTPUT_FOLDER> (defaults to sibling ('../output') of input reads directory)
@@ -20,7 +20,8 @@ Team 1 Genome Assembly repository. This repository includes the script genome_as
 - 	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
 - 	-m	[MEMORY] 					10		Amount of memory to allocate to the pipeline (GB)
 
-###### TOOLS INSTALLED/INVOKED:  
+##### TOOLS INSTALLED/INVOKED:  
+- 
 Read quality:  
 - FastQC  
 Genome assembly:  
@@ -42,7 +43,7 @@ The fastp command used was as:
 fastp -i *_1.fq.gz -I *_2.fq.gz -o ${dir}_1_fp.fq.gz -O ${dir}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M 28 -W 20 -e 28 -c
 ```
 
-Options used:
+##### Options used:
 - -i, -I, -o, -O indicate input and output file names for both reads, 
 - -f 5;	trim of the first 5 bases for both reads
 - -t 5;	trim of the last 5 bases for both reads
@@ -58,7 +59,7 @@ SKESA, SPAdes and ABySS are *de novo* assemlers which employ the de bruijn graph
 ```
 abyss-pe k=21 name=CGTxxxx in=‘CGTxxxx_1.fq.gz CGTxxxx_2.fq.gz’
 ```
-###### ABySS:
+##### ABySS:
 - the k option designates the k-mer size to use for the assembly
 - the name option indicates the name prefix desired for the output file
 - the in option takes the pair end reads separated by a whitespace
@@ -66,7 +67,7 @@ abyss-pe k=21 name=CGTxxxx in=‘CGTxxxx_1.fq.gz CGTxxxx_2.fq.gz’
 spades.py --careful –1 <CGTxxx_1.fq.gz> -2 <CGTxxx_2.fq.gz> -o <output directory> -t <# of cores> -k <k-mer sizes>
 ```
 
-###### SPAdes:
+##### SPAdes:
 - the -careful option works to reduce the number of mismatches and indels 
 - -1 and -2 options should be followed by the 1st and second fair end reads files respectively
 - the -o option takes the name of the output file
@@ -76,7 +77,7 @@ spades.py --careful –1 <CGTxxx_1.fq.gz> -2 <CGTxxx_2.fq.gz> -o <output directo
 ```
 skesa --reads CGTxxxx_1.fq.gz,CGTxxxx_2.fq.gz --cores <cores> --memory <memory> > CGTxxxx_SKESA.fasta
 ```
-###### SKESA:
+##### SKESA:
 - the --reads flag takes the paired end reads joined by ','
 - the --cores flag allows the user to assign the number of cores to give to the assembler
 - the --memory flag allows the user to assign the amount of memory (in gb) to give to the assembler
