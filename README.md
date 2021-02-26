@@ -2,7 +2,7 @@
 
 Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline.
 
-Part 1: Pre-assembly QC using fastp and consolidation of all analysis filed using multiqc.
+##Part 1: Pre-assembly QC using fastp and consolidation of all analysis filed using multiqc.
 	
 Fastp is an all-in-one trimming and filtering tool for raw fastq files. Outputs are quality controlled reads denoted by <isolatename>_fp_1.fq.gz and <isolatename>_fp_2.fq.gz, and fastp.html and fastp.json files used for visualization of filter results.
 
@@ -21,10 +21,12 @@ Options used:
 -c;	base correction
 
 
-Part2: De-novo assemblers using skesa, ABySS, and SPAdes assemblers
+##Part2: De-novo assembly using skesa, ABySS, and SPAdes assemblers
 
 USAGE
 	genome_assembly [OPTIONS...] INPUT_READS_DIRECTORY
+
+##Part 3: Post Assembly QC and Meta-Assembly
 
 DESCRIPTION
 A script to install and run a pipeline which assembles sets of paired-end reads in FASTQ format into  genome assemblies with multiple tools.
