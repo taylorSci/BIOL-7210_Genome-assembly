@@ -1,6 +1,37 @@
 # Team 1 Genome Assembly
 
-Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline.
+Team 1 Genome Assembly repository. This repository includes the script genome_assembly which inputs a directory of data (oraginzed in sub-directories includeing pair end reads of the format 1_fq.gz and 2_fq.gz for each isolate) and goes through the entire genome assembly pipeline. TO call the pipeline, run genome_assembly.sh
+
+PREREQUISITES:
+-	git
+-	conda
+
+TOOLS INSTALLED/INVOKED:
+	Read quality:
+-		FastQC
+	Genome assembly:
+-		ABySS
+-		SKESA
+-		SPAdes
+	Assembly quality control:
+-		REAPR
+-		dnAQET
+	Assembly reconciliation:
+-		GAM-NGS
+
+OPTIONS
+- 	-h display help
+- 	-i install pipeline
+- 	-o 	<OUTPUT_FOLDER> (defaults to sibling ('../output') of input reads directory)
+- 	-t 	<TOOLS_FOLDER>	 					directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
+- 	-p 										do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
+- 	-M	<cut_mean_quality	28	fastp: the mean quality requirement option shared by cut_front, cut_tail or cut_sliding. Range: 1~36
+- 	-e	<average_qual>		28	fastp: if one read's average quality score <avg_qual, then this read/pair is discarded. 0 means no requirement
+- 	-W	<cut_window_size>	20	fastp: the window size option shared by cut_front, cut_tail or cut_sliding. Range: 1~1000
+- 	-b 	<MIN_BLOCK_SIZE>			10		GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
+- 	-c 	<BLOCK_COVERAGE_THRESHOLD> 	0.75	GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
+- 	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
+- 	-m	[MEMORY] 					10		Amount of memory to allocate to the pipeline (GB)
 
 ## Part 1: Pre-assembly QC using fastp and consolidation of all analysis filed using multiqc.
 	
@@ -59,26 +90,4 @@ Script can be run with or without tool installation option (for pipeline reuse).
 Preprocesses input reads, provides assembly quality metrics, and attempts to reconcile assemblies into meta-assemblies.
 Developed on Illumina bridge amplification dye sequencing data.
 
-PREREQUISITES:
-	git
-	conda
 
-TOOLS INSTALLED/INVOKED:
-	Read quality:
-		FastQC
-	Genome assembly:
-		ABySS
-		SKESA
-		SPAdes
-	Assembly quality control:
-		REAPR
-		dnAQET
-	Assembly reconciliation:
-		GAM-NGS
-
-OPTIONS
-	-h	display help
-	-i	install pipeline
-	-o	[OUTPUT_FOLDER] (defaults to sibling ('../output') of input reads directory)
-	-t	[TOOLS_FOLDER] Directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
-"
