@@ -21,10 +21,12 @@ Options used:
 -c;	base correction
 
 
-##Part2: De-novo assembly using skesa, ABySS, and SPAdes assemblers
+## Part2: De-novo assembly using SKESA, ABySS, and SPAdes assemblers
+SKESA, SPAdes and ABySS are devono assemlers which employ the de bruijn graph method of assembling reads into contigs. This method involves breaking the reads into small fragments of size k, known as k-mers, and then traversing the Eulerian path through the k-mers to goin reads into larger contigs. SPAdes and SKESA automatucally determine and optimize whcih k-mers to use to assemble the genomes. ABySS requires input of a sinlge k-mer size which we optimized to 21 using k-mer optimizartion software, KmerGenie. Below are the usage cases for the three assemblers:
 
-USAGE
-	genome_assembly [OPTIONS...] INPUT_READS_DIRECTORY
+`abyss-pe k=21 name=CGTxxxx in=‘CGTxxxx_1.fq.gz CGTxxxx_2.fq.gz’`
+`spades.py --careful –1 <CGTxxx_1.fq.gz> -2 <CGTxxx_2.fq.gz> -o <output directory> -t <# of cores> -k <k-mer sizes>`
+`skesa --reads CGTxxxx_1.fq.gz,CGTxxxx_2.fq.gz --cores <cores> --memory <memory> > CGTxxxx_SKESA.fasta`
 
 ## Part 3: Post Assembly QC and Meta-Assembly
 
