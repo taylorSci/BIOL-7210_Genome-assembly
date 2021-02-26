@@ -7,17 +7,17 @@ PREREQUISITES:
 -	conda
 
 TOOLS INSTALLED/INVOKED:
-	Read quality:
--		FastQC
+Read quality:
+-FastQC
 	Genome assembly:
--		ABySS
--		SKESA
--		SPAdes
-	Assembly quality control:
--		REAPR
--		dnAQET
-	Assembly reconciliation:
--		GAM-NGS
+-ABySS
+-SKESA
+-SPAdes
+Assembly quality control:
+-REAPR
+-dnAQET
+Assembly reconciliation:
+-GAM-NGS
 
 OPTIONS
 - 	-h display help
