@@ -111,6 +111,7 @@ GAM-NGS attempts to reconcile genome assemblies that were constructed by differe
 GAM-NGS requires as inputs BAM files which have the NGS reads mapped to assembly contigs. The algorithm operates by building 'blocks' where the same set of uniquely mapped (mapped to exactly one spot in an assembly) reads are mapped to corresponding loci on both assemblies. The algorithm walks through the resulting weighted graph to produce a merged assembly.
 - --min-blocks-size: the number of uniquely mapped reads required on both assembly frames to establish a block
 - --coverage-filter: the minimum fraction required of all reads mapped to a block that are mapped to both assemblies
+
 Further details at:
 https://github.com/vice87/gam-ngs
 https://doi.org/10.1186/1471-2105-14-S7-S6
