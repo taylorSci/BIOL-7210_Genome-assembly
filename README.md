@@ -113,5 +113,5 @@ GAM-NGS requires as inputs BAM files which have the NGS reads mapped to assembly
 - --coverage-filter: the minimum fraction required of all reads mapped to a block that are mapped to both assemblies
 
 Further details at:
-https://github.com/vice87/gam-ngs
-https://doi.org/10.1186/1471-2105-14-S7-S6
+- https://github.com/vice87/gam-ngs
+- https://doi.org/10.1186/1471-2105-14-S7-S6
