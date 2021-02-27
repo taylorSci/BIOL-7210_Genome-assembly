@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 # TODO Finalize help message
-print_help() {echo "
+print_help() { echo "
 USAGE
 	genome_assembly [OPTIONS...] <INPUT_READS_DIRECTORY>
 
@@ -37,17 +37,18 @@ OPTIONS
 	-o 	<OUTPUT_FOLDER> 					(defaults to sibling ('../output') of input reads directory)
 	-t 	<TOOLS_FOLDER>	 					directory where pipeline tools will be installed (defaults to sibling ('../tools') of input reads directory)
 	-p 										do NOT write TOOLS_FOLDER to PATH and modify startup file (eg .bash_profile) accordingly
-	-M	<cut_mean_quality	28	fastp: the mean quality requirement option shared by cut_front, cut_tail or cut_sliding. Range: 1~36
-	-e	<average_qual>		28	fastp: if one read's average quality score <avg_qual, then this read/pair is discarded. 0 means no requirement
-	-W	<cut_window_size>	20	fastp: the window size option shared by cut_front, cut_tail or cut_sliding. Range: 1~1000
-	-k	<k-mer>			21	ABySS: kmer size
+	-M	<cut_mean_quality			28		fastp: the mean quality requirement option shared by cut_front, cut_tail or cut_sliding. Range: 1~36
+	-e	<average_qual>				28		fastp: if the average quality score of one read <avg_qual, then this read/pair is discarded. 0 means no requirement
+	-W	<cut_window_size>			20		fastp: the window size option shared by cut_front, cut_tail or cut_sliding. Range: 1~1000
+	-k	<k-mer>						21		ABySS: kmer size
 	-b 	<MIN_BLOCK_SIZE>			10		GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
 	-c 	<BLOCK_COVERAGE_THRESHOLD> 	0.75	GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
-	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
-	-m	[MEMORY] 					10		Amount of memory to allocate to the pipeline (GB)
-"}
+	-n	<NUMER_OF_CORES> 			6		Number of cores that will be used to run the pipeline
+	-m	<MEMORY>					10		Amount of memory to allocate to the pipeline (GB)
+"
+}
 
-# Parse optional arguments  # TODO add assembly parameters
+# Parse optional arguments
 install_=false
 outputDir=""
 toolsDir=""
@@ -63,7 +64,7 @@ mem=10
 while getopts "hio:t:pM:e:W:b:c:m:n:" option
 do
 	case $option in
-		h) 	print_help;;
+		h) 	print_help
 			exit;;
 		i) 	install_=true;;
 		o) 	outputDir=$(realpath $OPTARG);;
@@ -129,7 +130,7 @@ then
 	do
 		conda install $dependency
 	done
-	for dependency in cmake bwa samtools bamtools snpomatic tabix
+	for dependency in cmake bwa samtools # bamtools snpomatic tabix
 	do
 		if ! type $dependency &> /dev/null
 		then
@@ -170,9 +171,6 @@ then
 		tar -xzf $toolsDir/REAPR/Reapr_1.0.18.tar.gz -C $toolsDir/REAPR
 		cd $toolsDir/REAPR/Reapr*
 		make src/
-		#./configure
-		#make
-		#make install
 		ln -s $toolsDir/REAPR/src/reapr.pl $toolsDir/reapr
 	fi
 
@@ -213,7 +211,7 @@ for i in $isolates
 do
 	mkdir -p $fastpDir/$i
 	cd $fastpDir/$i
-#	fastp -i $inputDir/$i/${i}_1.fq.gz -I $inputDir/$i/${i}_2.fq.gz -o ${i}_1_fp.fq.gz -O ${i}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M $cut_mean_quality -W $cut_window_size -e $average_qual -c
+	fastp -i $inputDir/$i/${i}_1.fq.gz -I $inputDir/$i/${i}_2.fq.gz -o ${i}_1_fp.fq.gz -O ${i}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M $cut_mean_quality -W $cut_window_size -e $average_qual -c
 done
 cd $fastpDir
 # multiqc . TODO Troubleshoot
@@ -225,7 +223,7 @@ mkdir -p $ABySSDir/extra
 
 for i in $isolates;
 do 
-#	abyss-pe k=$kmer in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
+	abyss-pe k=$kmer in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
 	# Repair contig names to something REAPR likes
 	echo "reapr"
 	reapr facheck $ABySSDir/extra/${PATTERN}-contigs.fa $ABySSDir/contigs/${PATTERN}_ABySS.fasta
@@ -236,7 +234,7 @@ mkdir -p $SKESADir/contigs
 
 for i in $isolates;
 do
-#	skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores --memory $mem > $outputDir/assemblies/SKESA/contigs/${i}_SKESA.fasta
+	skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores --memory $mem > $outputDir/assemblies/SKESA/contigs/${i}_SKESA.fasta
 	echo wurd
 done
 
@@ -246,7 +244,7 @@ mkdir -p $SPAdesDir/extra
 
 for i in $isolates;
 do 
-#	spades.py -1 $fastpDir/$i/${i}_1_fp.fq.gz -2 $fastpDir/$i/${i}_2_fp.fq.gz -o $SPAdesDir/extra/$i -t 4
+	spades.py -1 $fastpDir/$i/${i}_1_fp.fq.gz -2 $fastpDir/$i/${i}_2_fp.fq.gz -o $SPAdesDir/extra/$i -t 4
 	ln $SPAdesDir/extra/$i/contigs.fasta $SPAdesDir/contigs/${i}_SPAdes.fasta
 done
 
@@ -364,7 +362,7 @@ do
 	# Merge first two
 	echo "$PATTERN: Performing initial merge..."
 	gam-create --master-bam $reconDir/${first}_$PATTERN.bamlist --slave-bam $reconDir/${second}_$PATTERN.bamlist --min-block-size $Bmin --output $tmpDir/intermediate
-	eval "gam-merge $(eval "echo --master-bam $reconDir/${first}_$PATTERN.bamlist --slave-bam $reconDir/${second}_$PATTERN.bamlist --blocks-file $tmpDir/intermediate.blocks --master-fasta \$${first}Contigs --slave-fasta \$${second}Contigs --output $tmpDir/intermediate")"
+	eval "gam-merge $(eval "echo --master-bam $reconDir/${first}_$PATTERN.bamlist --slave-bam $reconDir/${second}_$PATTERN.bamlist --blocks-file $tmpDir/intermediate.blocks --master-fasta \$${first}Contigs --slave-fasta \$${second}Contigs --output $tmpDir/intermediate --coverage-filter $Tc")"
 
 	# Prep partially merged assembly
 	echo "$PATTERN: Prepping second merge..."
