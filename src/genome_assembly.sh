@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 # TODO Finalize help message
-helpMessage="
+print_help() {echo "
 USAGE
 	genome_assembly [OPTIONS...] <INPUT_READS_DIRECTORY>
 
@@ -14,7 +14,9 @@ Developed on Illumina bridge amplification dye sequencing data.
 
 PREREQUISITES:
 	git
-	conda
+	conda (tool & dependency will occur in your current env)
+	make
+	Perl & CPAN
 
 TOOLS INSTALLED/INVOKED:
 	Read quality:
@@ -38,11 +40,12 @@ OPTIONS
 	-M	<cut_mean_quality	28	fastp: the mean quality requirement option shared by cut_front, cut_tail or cut_sliding. Range: 1~36
 	-e	<average_qual>		28	fastp: if one read's average quality score <avg_qual, then this read/pair is discarded. 0 means no requirement
 	-W	<cut_window_size>	20	fastp: the window size option shared by cut_front, cut_tail or cut_sliding. Range: 1~1000
+	-k	<k-mer>			21	ABySS: kmer size
 	-b 	<MIN_BLOCK_SIZE>			10		GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
 	-c 	<BLOCK_COVERAGE_THRESHOLD> 	0.75	GAM-NGS parameter (default taken from https://doi.org/10.1186/1471-2105-14-S7-S6)
 	-n	[NUMER_OF_CORES] 			6		Number of cores that will be used to run the pipeline
 	-m	[MEMORY] 					10		Amount of memory to allocate to the pipeline (GB)
-"
+"}
 
 # Parse optional arguments  # TODO add assembly parameters
 install_=false
@@ -52,6 +55,7 @@ pathFlag=false
 cut_mean_quality=28
 average_qual=28
 cut_window_size=20
+kmer=21
 Bmin=10
 Tc=0.75
 cores=6
@@ -59,7 +63,7 @@ mem=10
 while getopts "hio:t:pM:e:W:b:c:m:n:" option
 do
 	case $option in
-		h) 	echo $helpMessage
+		h) 	print_help;;
 			exit;;
 		i) 	install_=true;;
 		o) 	outputDir=$(realpath $OPTARG);;
@@ -68,6 +72,7 @@ do
 		M)	cut_mean_quality=$OPTARG;;
 		e)	average_qual=$OPTARG;;
 		W)	cut_window_size=$OPTARG;;
+		k)	kmer=$OPTARG;;
 		b) 	Bmin=$OPTARG;;
 		c) 	Tc=$OPTARG;;
 		n) 	cores=$OPTARG;;
@@ -120,9 +125,24 @@ then
 
 	# TODO Add dependencies for all tools here
 	echo "Installing required dependencies..."
-	for dependency in gxx_linux-64 cmake zlib boost google-sparsehash bwa samtools
+	for dependency in gxx_linux-64 zlib boost google-sparsehash r-base
 	do
 		conda install $dependency
+	done
+	for dependency in cmake bwa samtools bamtools snpomatic tabix
+	do
+		if ! type $dependency &> /dev/null
+		then
+			conda install $dependency
+		fi
+	done
+	if ! type R
+	then
+		conda install r-base
+	fi
+	for pmod in File::Basename File::Copy File::Spec inc::latest File::Spec::Link Getopt::Long List::Util
+	do
+		cpan -I $pmod
 	done
 
 	echo "Installing fastp..."
@@ -142,17 +162,17 @@ then
 	echo "Installing SPAdes..."
 	conda install -c bioconda spades
 
-	echo "Installing REAPR..."
 	if ! type reapr &> /dev/null
 	then
-		cd $toolsDir
-		mkdir REAPR
-		cd REAPR
-		wget ftp://ftp.sanger.ac.uk/pub/resources/software/reapr/Reapr_1.0.18.tar.gz
-		tar -xzf Reapr_1.0.18.tar.gz -C $toolsDir/REAPR
-		./configure
-		make
-		make install
+		echo "Installing REAPR..."
+		mkdir -p $toolsDir/REAPR
+		wget -P $tools/REAPR ftp://ftp.sanger.ac.uk/pub/resources/software/reapr/Reapr_1.0.18.tar.gz
+		tar -xzf $toolsDir/REAPR/Reapr_1.0.18.tar.gz -C $toolsDir/REAPR
+		cd $toolsDir/REAPR/Reapr*
+		make src/
+		#./configure
+		#make
+		#make install
 		ln -s $toolsDir/REAPR/src/reapr.pl $toolsDir/reapr
 	fi
 
@@ -173,7 +193,7 @@ isolates=$(ls $inputDir)
 assemblies="ABySS SKESA SPAdes"
 
 fastpDir=$outputDir/read_QC/fastp
-contigPath=$outputDir/assemblies/\$assembly/contigs/\${PATTERN}_$assembly.fasta
+contigPath=$outputDir/assemblies/\$assembly/contigs/\${PATTERN}_\$assembly.fasta
 bamPath=$outputDir/bam_files/\${PATTERN}_sorted.\$assembly.bam
 qaPath=$outputDir/REAPR/unreconciled/QA_\$assembly/\${PATTERN}_QA/05.summary.report.txt
 reconDir=$outputDir/assembly-reconciliation
@@ -193,10 +213,10 @@ for i in $isolates
 do
 	mkdir -p $fastpDir/$i
 	cd $fastpDir/$i
-	fastp -i $inputDir/$i/${i}_1.fq.gz -I $inputDir/$i/${i}_2.fq.gz -o ${i}_1_fp.fq.gz -O ${i}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M $cut_mean_quality -W $cut_window_size -e $average_qual -c
+#	fastp -i $inputDir/$i/${i}_1.fq.gz -I $inputDir/$i/${i}_2.fq.gz -o ${i}_1_fp.fq.gz -O ${i}_2_fp.fq.gz -f 5 -t 5 -5 -3 -M $cut_mean_quality -W $cut_window_size -e $average_qual -c
 done
 cd $fastpDir
-multiqc .
+# multiqc . TODO Troubleshoot
 
 # Assemble genomes & generating sequence alignment maps
 echo "Assembling with ABySS..."
@@ -205,19 +225,19 @@ mkdir -p $ABySSDir/extra
 
 for i in $isolates;
 do 
-	abyss-pe k=70 in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
+#	abyss-pe k=$kmer in="$fastpDir/$i/${i}_1_fp.fq.gz $fastpDir/$i/${i}_2_fp.fq.gz" name=$ABySSDir/extra/$i
 	# Repair contig names to something REAPR likes
-	reapr facheck $ABySSDir/extra/$PATTERN/${PATTERN}-contigs.fa $ABySSDir/contigs/${PATTERN}_ABySS.fasta
+	echo "reapr"
+	reapr facheck $ABySSDir/extra/${PATTERN}-contigs.fa $ABySSDir/contigs/${PATTERN}_ABySS.fasta
 done
 
 echo "Assembling with SKESA..."
 mkdir -p $SKESADir/contigs
-mkdir -p $SKESADir/extra
 
 for i in $isolates;
 do
-	skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores -- memory $mem > $outputDir/assemblies/SKESA/${i}_SKESA.fasta
-	ln $SKESADir/extra/$i/${i}-contigs.fa $SKESADir/contigs/${i}_SKESA.fasta
+#	skesa --reads $outputDir/read_QC/fastp/$i/${i}_1_fp.fq.gz,$outputDir/read_QC/fastp/$i/${i}_2_fp.fq.gz --cores $cores --memory $mem > $outputDir/assemblies/SKESA/contigs/${i}_SKESA.fasta
+	echo wurd
 done
 
 echo "Assembling with SPAdes..."
@@ -226,20 +246,20 @@ mkdir -p $SPAdesDir/extra
 
 for i in $isolates;
 do 
-	spades.py -1 $fastpDir/$i/${i}_1_fp.fq.gz -2 $fastpDir/$i/${i}_2_fp.fq.gz -o $SPAdesDir/extra/$i -t 4
+#	spades.py -1 $fastpDir/$i/${i}_1_fp.fq.gz -2 $fastpDir/$i/${i}_2_fp.fq.gz -o $SPAdesDir/extra/$i -t 4
 	ln $SPAdesDir/extra/$i/contigs.fasta $SPAdesDir/contigs/${i}_SPAdes.fasta
 done
 
 # Post-assembly QC
-echo "Analyzing $assembler output..."
-
+echo "Analyzing assembly output..."
+mkdir -p $outputDir/bam_files
 for PATTERN in $isolates;
 do
 	for assembly in $assemblies
 	do
 		# Generate and index BAM files
 		eval "bwa index $(echo $contigPath)"
-		eval "bwa mem $(echo "$contigPath") $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $fastpDir/$PATTERN/${PATTERN}_2.fq.gz" > $outputDir/bam_files/${PATTERN}.$assembly.sam
+		eval "bwa mem $(echo "$contigPath") $fastpDir/$PATTERN/${PATTERN}_1_fp.fq.gz $fastpDir/$PATTERN/${PATTERN}_2_fp.fq.gz" > $outputDir/bam_files/${PATTERN}.$assembly.sam
 		samtools fixmate -O bam $outputDir/bam_files/$PATTERN.$assembly.sam $outputDir/bam_files/$PATTERN.$assembly.bam
 		eval "samtools sort -O bam -o $(echo $bamPath) -T temp $outputDir/bam_files/$PATTERN.$assembly.bam"
 		eval "samtools index $(echo $bamPath)"
