@@ -1,3 +1,11 @@
+Copied from Georgia Tech BIOL 7210 (Spring 2021) course code. Students are permitted to share their work in other venues during & after the semester.
+
+This is a genome assembly pipeline I assembled from teammate contributions.
+
+This code was contributed to Team I. The course wiki can be found at https://compgenomics2021.biosci.gatech.edu/Main_Page.
+
+*******************************************************************************
+
 # Team 1 Genome Assembly
 #### MEMBERS:
 Anneke Augenbroe, Aekansh Goel, Taylor Hoyt, Hyojung Kim, Sai Kollapaneni, and Nikesh Kumar
